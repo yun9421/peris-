@@ -1,0 +1,18 @@
+{
+  "name": "Pieris编辑部 - AI小说编辑部体验站",
+  "short_name": "Pieris编辑部",
+  "description": "多角色 AI 小说锐评、编辑群聊与作品体检报告",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0b0714",
+  "theme_color": "#8f6bff",
+  "orientation": "any",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#120a26"/>
+      <stop offset="55%" stop-color="#1f1240"/>
+      <stop offset="100%" stop-color="#11081f"/>
+    </linearGradient>
+    <linearGradient id="accent" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#d7b7ff"/>
+      <stop offset="55%" stop-color="#9b73ff"/>
+      <stop offset="100%" stop-color="#6de3c0"/>
+    </linearGradient>
+  </defs>
+  <rect fill="url(#bg)" width="512" height="512" rx="96"/>
+  <circle cx="256" cy="214" r="142" fill="none" stroke="rgba(255,255,255,0.09)" stroke-width="2"/>
+  <path d="M166 182c24-39 58-58 102-58 55 0 91 31 91 82 0 54-39 89-97 89h-34v67h-62V153h102c34 0 52 13 52 36 0 22-17 36-46 36h-48v70h31c30 0 46-14 46-40 0-27-19-42-52-42-34 0-60 13-81 40z" fill="url(#accent)"/>
+  <text x="256" y="408" font-size="42" text-anchor="middle" fill="#d8cff4" font-family="sans-serif" letter-spacing="6">PIERIS</text>
+</svg>

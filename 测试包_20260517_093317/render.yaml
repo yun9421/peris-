@@ -1,0 +1,17 @@
+services:
+  - type: web
+    name: pieris-editorial-room
+    runtime: python
+    plan: free
+    autoDeploy: true
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn -b 0.0.0.0:$PORT app:app
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.8
+      - key: DEMO_MODE_ENABLED
+        value: true
+      - key: DEMO_MAX_REQUESTS_PER_IP
+        value: 8
+      - key: DEMO_MAX_REQUESTS_TOTAL
+        value: 80

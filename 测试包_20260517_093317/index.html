@@ -1,0 +1,2981 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pieris编辑部</title>
+<link rel="manifest" href="/manifest.json">
+<link rel="stylesheet" href="/vendor/swiper-bundle.min.css">
+<meta name="theme-color" content="#a078ff">
+<style>
+/* ============================================================
+   CSS Reset & Base
+   ============================================================ */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg-deep:    #0b0714;
+  --bg-main:    #100a1f;
+  --bg-card:    #1a1035;
+  --bg-card-hv: #221845;
+  --bg-input:   #160e2b;
+  --bg-sidebar: #0d0820;
+  --border:     #2d1f55;
+  --border-hi:  #5b3a9e;
+  --text:       #e0d6f5;
+  --text-dim:   #9588b5;
+  --text-bright:#f0e8ff;
+  --accent:     #a078ff;
+  --accent-gl:  #b388ff;
+  --accent-bright:#c79dff;
+  --gold:       #e2b96f;
+  --danger:     #ff6b7a;
+  --success:    #5ce0b8;
+  --font-cn:   "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans SC", sans-serif;
+  --radius:    10px;
+  --radius-lg: 18px;
+  --transition: 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+html { font-size: 14.5px; }
+body {
+  font-family: var(--font-cn);
+  background: var(--bg-deep);
+  color: var(--text);
+  min-height: 100vh;
+  position: relative;
+  line-height: 1.7;
+  background-image:
+    radial-gradient(ellipse at 20% 10%, rgba(120, 70, 220, 0.08) 0%, transparent 60%),
+    radial-gradient(ellipse at 80% 90%, rgba(160, 100, 240, 0.05) 0%, transparent 60%),
+    radial-gradient(ellipse at 50% 50%, rgba(100, 60, 200, 0.03) 0%, transparent 80%);
+}
+
+#editorial-bg {
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  z-index: 0;
+  background:
+    radial-gradient(circle at 18% 16%, rgba(108, 80, 182, 0.12), transparent 32%),
+    radial-gradient(circle at 82% 14%, rgba(82, 60, 138, 0.08), transparent 28%),
+    linear-gradient(180deg, rgba(7, 5, 16, 0.28), rgba(7, 5, 16, 0.6));
+}
+.editorial-bg-layer {
+  position: absolute;
+  inset: -5%;
+  transform-origin: center;
+  will-change: transform;
+  transition: transform 220ms ease-out;
+}
+.editorial-bg-image {
+  background-image:
+    linear-gradient(180deg, rgba(7, 5, 16, 0.28), rgba(7, 5, 16, 0.62)),
+    url("https://coresg-normal.trae.ai/api/ide/v1/text_to_image?prompt=cinematic%20nighttime%20editorial%20office%20interior%2C%20luxury%20magazine%20workspace%2C%20dim%20desk%20lamps%2C%20paper%20stacks%2C%20dark%20glass%20windows%2C%20rainy%20city%20bokeh%2C%20muted%20indigo%20plum%20and%20charcoal%20palette%2C%20refined%20high-end%20art%20direction%2C%20realistic%2C%20atmospheric%2C%20subtle%20film%20grain%2C%20no%20people&image_size=landscape_16_9");
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: cover;
+  opacity: 0.2;
+  filter: saturate(0.78) brightness(0.58) contrast(1.05);
+}
+.editorial-bg-glow {
+  opacity: 0.34;
+  mix-blend-mode: screen;
+}
+.editorial-bg-glow-left {
+  background:
+    radial-gradient(circle at 24% 28%, rgba(198, 164, 255, 0.2), transparent 0 28%),
+    radial-gradient(circle at 36% 18%, rgba(121, 89, 220, 0.16), transparent 0 18%);
+}
+.editorial-bg-glow-right {
+  background:
+    radial-gradient(circle at 76% 30%, rgba(160, 120, 255, 0.18), transparent 0 26%),
+    radial-gradient(circle at 70% 72%, rgba(94, 124, 208, 0.12), transparent 0 20%);
+}
+.editorial-bg-grain {
+  opacity: 0.08;
+  background-image:
+    linear-gradient(rgba(255,255,255,0.045) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px);
+  background-size: 4px 4px, 4px 4px;
+  mix-blend-mode: soft-light;
+}
+.container,
+#toast-container {
+  position: relative;
+  z-index: 1;
+}
+
+/* ============================================================
+   App Layout — Single Column, dual-panel below controls
+   ============================================================ */
+.container {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 0 24px;
+}
+
+/* ============================================================
+   Dual Panel — Group Chat + Review side by side
+   ============================================================ */
+.dual-panel {
+  display: none;
+  gap: 22px;
+  margin: 28px 0 48px;
+  align-items: flex-start;
+}
+.dual-panel.visible { display: flex; animation: fadeIn 0.4s ease; }
+
+/* ---- Chat Panel (left, ~340px, sticky floating) ---- */
+.chat-panel {
+  flex: 0 0 340px;
+  background: var(--bg-sidebar);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  display: flex;
+  flex-direction: column;
+  position: sticky;
+  top: 16px;
+  max-height: calc(100vh - 32px);
+}
+.chat-panel .chat-header {
+  padding: 16px 18px;
+  border-bottom: 1px solid var(--border);
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--text-bright);
+  letter-spacing: 0.04em;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.chat-panel .chat-header .dot {
+  width: 8px; height: 8px; border-radius: 50%; background: var(--success);
+  animation: pulse-dot 2s infinite;
+}
+@keyframes pulse-dot { 0%,100%{opacity:1} 50%{opacity:.3} }
+.chat-panel .chat-header .members {
+  font-size: 0.7rem; color: var(--text-dim); font-weight: 400; margin-left: auto;
+}
+.chat-panel .chat-messages {
+  flex: 1;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  overflow-y: auto;
+  min-height: 0;
+}
+.chat-panel .chat-messages::-webkit-scrollbar { width: 4px; }
+.chat-panel .chat-messages::-webkit-scrollbar-track { background: transparent; }
+.chat-panel .chat-messages::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+.chat-panel .chat-status {
+  padding: 10px 18px;
+  font-size: 0.7rem; color: var(--text-dim);
+  border-top: 1px solid var(--border);
+  flex-shrink: 0; min-height: 32px; letter-spacing: 0.03em;
+}
+.chat-placeholder {
+  flex: 1; display: flex; align-items: center; justify-content: center;
+  color: var(--text-dim); font-size: 0.8rem; opacity: 0.5;
+  letter-spacing: 0.04em; text-align: center; padding: 24px; line-height: 1.8;
+}
+
+/* ---- Review Panel (right, flex) ---- */
+.review-panel {
+  flex: 1;
+  min-width: 0;
+}
+
+/* Chat message bubble */
+.chat-msg {
+  display: flex;
+  gap: 10px;
+  padding: 6px 0;
+  animation: msgIn 0.35s ease;
+}
+.chat-msg.dimmed { opacity: 0.4; }
+.chat-msg.dimmed .msg-text { font-style: italic; color: var(--text-dim); }
+@keyframes msgIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.chat-msg .msg-avatar {
+  flex-shrink: 0;
+  width: 34px; height: 34px;
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1rem;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+}
+.chat-msg .msg-body { min-width: 0; }
+.chat-msg .msg-name {
+  font-size: 0.75rem;
+  color: var(--text-dim);
+  margin-bottom: 3px;
+  letter-spacing: 0.03em;
+}
+.chat-msg .msg-text {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 4px 12px 12px 12px;
+  padding: 8px 12px;
+  font-size: 0.85rem;
+  line-height: 1.55;
+  color: var(--text);
+  word-break: break-word;
+  display: inline-block;
+  max-width: 100%;
+}
+
+/* Typing indicator in chat */
+.typing-indicator {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 0;
+  font-size: 0.75rem;
+  color: var(--text-dim);
+  animation: msgIn 0.3s ease;
+}
+.typing-indicator .dots {
+  display: flex; gap: 3px;
+}
+.typing-indicator .dots span {
+  width:5px;height:5px;border-radius:50%;background:var(--text-dim);
+  animation: bounce 1.2s infinite ease-in-out;
+}
+.typing-indicator .dots span:nth-child(2){animation-delay:0.15s}
+.typing-indicator .dots span:nth-child(3){animation-delay:0.3s}
+
+.chat-status {
+  padding: 10px 20px;
+  font-size: 0.72rem;
+  color: var(--text-dim);
+  border-top: 1px solid var(--border);
+  flex-shrink: 0;
+  min-height: 36px;
+  letter-spacing: 0.03em;
+}
+
+/* ============================================================
+   Main Content (everything above dual-panel)
+   ============================================================ */
+.main-content {
+  padding: 32px 0 0;
+}
+
+/* ============================================================
+   Header
+   ============================================================ */
+.header {
+  text-align: center;
+  padding: 24px 0 30px;
+  margin-bottom: 10px;
+}
+.hero-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 14px;
+  border: 1px solid rgba(179, 136, 255, 0.28);
+  border-radius: 999px;
+  background: rgba(124, 78, 255, 0.08);
+  color: var(--accent-bright);
+  font-size: 0.72rem;
+  letter-spacing: 0.12em;
+  margin-bottom: 14px;
+  box-shadow: 0 0 30px rgba(160,120,255,0.08);
+}
+.header h1 {
+  font-size: 2.25rem;
+  font-weight: 900;
+  letter-spacing: 0.06em;
+  background: linear-gradient(135deg, var(--accent-bright) 0%, #e8b4ff 40%, var(--accent) 70%, #b388ff 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  margin-bottom: 4px;
+  filter: drop-shadow(0 0 18px rgba(160, 120, 255, 0.3));
+}
+.header .subtitle {
+  font-size: 0.88rem;
+  color: var(--text-dim);
+  letter-spacing: 0.12em;
+  margin-bottom: 14px;
+}
+.hero-copy {
+  max-width: 760px;
+  margin: 0 auto 18px;
+  color: rgba(235, 226, 255, 0.86);
+  font-size: 0.95rem;
+  line-height: 1.9;
+}
+.hero-metrics,
+.feature-pills {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 10px;
+}
+.hero-metrics {
+  margin-bottom: 10px;
+}
+.hero-metrics span,
+.feature-pills span {
+  padding: 8px 14px;
+  border-radius: 999px;
+  border: 1px solid rgba(91, 58, 158, 0.6);
+  background: rgba(26, 16, 53, 0.8);
+  color: var(--text-dim);
+  font-size: 0.76rem;
+  letter-spacing: 0.05em;
+}
+
+/* ============================================================
+   Settings Bar
+   ============================================================ */
+.settings-bar {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+.settings-btn {
+  padding: 6px 14px;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: transparent;
+  color: var(--text-dim);
+  cursor: pointer;
+  font-size: 0.76rem;
+  letter-spacing: 0.04em;
+  transition: var(--transition);
+  font-family: var(--font-cn);
+}
+.settings-btn:hover { border-color: var(--accent); color: var(--accent-bright); }
+.settings-btn.active { border-color: var(--accent); color: var(--accent-bright); background: rgba(160,120,255,0.10); }
+
+.demo-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px 18px;
+  border: 1px solid rgba(92,224,184,0.25);
+  border-radius: 16px;
+  margin-bottom: 18px;
+  background:
+    linear-gradient(135deg, rgba(92,224,184,0.10), rgba(160,120,255,0.10)),
+    rgba(16, 10, 31, 0.92);
+  box-shadow: 0 12px 40px rgba(8, 6, 20, 0.35);
+}
+.demo-banner[hidden] { display: none !important; }
+.demo-banner-title {
+  font-size: 0.82rem;
+  color: var(--success);
+  letter-spacing: 0.08em;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+.demo-banner-text {
+  flex: 1;
+  font-size: 0.82rem;
+  color: var(--text);
+  line-height: 1.7;
+}
+
+/* ============================================================
+   API Key Row — collapsible
+   ============================================================ */
+.api-key-section {
+  overflow: hidden;
+  transition: max-height 0.35s ease, opacity 0.3s ease, margin 0.3s ease;
+  max-height: 80px;
+  opacity: 1;
+  margin-bottom: 20px;
+}
+.api-key-section.folded {
+  max-height: 0;
+  opacity: 0;
+  margin-bottom: 0;
+}
+.api-key-row {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 10px 16px;
+}
+.api-key-row label {
+  white-space: nowrap;
+  color: var(--text-dim);
+  font-size: 0.84rem;
+  letter-spacing: 0.04em;
+}
+.api-key-row input {
+  flex: 1;
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  color: var(--text);
+  padding: 9px 14px;
+  border-radius: 6px;
+  font-size: 0.84rem;
+  font-family: monospace;
+  outline: none;
+  transition: var(--transition);
+}
+.api-key-row input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(160,120,255,0.12); }
+.api-key-row input::placeholder { color: var(--text-dim); opacity: 0.5; }
+.btn-verify {
+  padding: 8px 16px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg-input);
+  color: var(--text-dim);
+  cursor: pointer;
+  font-size: 0.8rem;
+  letter-spacing: 0.04em;
+  transition: var(--transition);
+  white-space: nowrap;
+  font-family: var(--font-cn);
+}
+.btn-verify:hover { border-color: var(--accent); color: var(--accent-bright); }
+.btn-verify:disabled { opacity: 0.4; cursor: not-allowed; }
+.btn-verify.success { border-color: var(--success); color: var(--success); background: rgba(92,224,184,0.08); }
+.btn-verify.fail    { border-color: var(--danger); color: var(--danger); background: rgba(255,107,122,0.08); }
+.verify-status {
+  font-size: 0.75rem;
+  white-space: nowrap;
+  min-width: 56px;
+}
+.verify-status.ok  { color: var(--success); }
+.verify-status.err { color: var(--danger); }
+
+/* ============================================================
+   Upload Zone
+   ============================================================ */
+.upload-zone {
+  border: 2px dashed var(--border);
+  border-radius: var(--radius-lg);
+  padding: 40px 24px;
+  text-align: center;
+  cursor: pointer;
+  transition: var(--transition);
+  background:
+    linear-gradient(180deg, rgba(29, 18, 59, 0.95), rgba(20, 13, 40, 0.95));
+  margin-bottom: 22px;
+  box-shadow: 0 18px 48px rgba(9, 6, 22, 0.35);
+}
+.upload-zone:hover,
+.upload-zone.drag-over {
+  border-color: var(--accent);
+  background: var(--bg-card-hv);
+  box-shadow: 0 0 40px rgba(160,120,255,0.10), inset 0 0 80px rgba(160,120,255,0.03);
+}
+.upload-zone .icon { font-size: 2.2rem; margin-bottom: 8px; display: block; opacity: 0.7; }
+.upload-zone .label { font-size: 1rem; color: var(--text-bright); letter-spacing: 0.04em; }
+.upload-zone .hint { font-size: 0.76rem; color: var(--text-dim); opacity: 0.8; margin-top: 6px; }
+.upload-zone input[type=file] { display: none; }
+.upload-zone.uploaded { border-style: solid; border-color: var(--success); background: rgba(92,224,184,0.04); }
+.upload-zone.uploaded .label { color: var(--success); }
+
+/* ============================================================
+   Chapter Selector
+   ============================================================ */
+.chapter-section {
+  display: none;
+  margin-bottom: 20px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px 20px;
+}
+.chapter-section.visible { display: block; animation: fadeIn 0.4s ease; }
+.chapter-section h3 {
+  font-size: 0.86rem;
+  color: var(--text-dim);
+  letter-spacing: 0.06em;
+  margin-bottom: 10px;
+  font-weight: 500;
+}
+.chapter-list { display: flex; flex-wrap: wrap; gap: 8px; }
+.chapter-chip {
+  padding: 7px 14px;
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  cursor: pointer;
+  font-size: 0.8rem;
+  color: var(--text-dim);
+  transition: var(--transition);
+  background: var(--bg-input);
+  white-space: nowrap;
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.chapter-chip:hover { border-color: var(--border-hi); color: var(--text); }
+.chapter-chip.selected {
+  border-color: var(--accent);
+  color: var(--accent-bright);
+  background: rgba(160,120,255,0.12);
+  box-shadow: 0 0 10px rgba(160,120,255,0.15);
+}
+
+/* ============================================================
+   Character Cards
+   ============================================================ */
+.editor-gallery-shell {
+  position: relative;
+  overflow: hidden;
+  margin-top: 14px;
+  margin-bottom: 22px;
+  padding: 24px;
+  border: 1px solid rgba(91, 58, 158, 0.55);
+  border-radius: 24px;
+  background:
+    radial-gradient(circle at var(--gallery-mx, 20%) var(--gallery-my, 20%), rgba(199, 157, 255, 0.16), transparent 34%),
+    linear-gradient(160deg, rgba(24, 15, 46, 0.98), rgba(14, 10, 28, 0.98));
+  box-shadow: 0 18px 60px rgba(9, 6, 22, 0.38), inset 0 1px 0 rgba(255,255,255,0.04);
+}
+.editor-gallery-shell::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(120deg, rgba(255,255,255,0.04), transparent 35%, transparent 65%, rgba(160,120,255,0.06));
+}
+.editor-gallery-head {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+  margin-bottom: 18px;
+}
+.editor-gallery-kicker {
+  color: var(--gold);
+  font-size: 0.72rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  margin-bottom: 6px;
+}
+.editor-gallery-head h3 {
+  color: var(--text-bright);
+  font-size: 1.08rem;
+  letter-spacing: 0.05em;
+  margin-bottom: 6px;
+}
+.editor-gallery-head p {
+  color: rgba(224, 214, 245, 0.78);
+  font-size: 0.83rem;
+  line-height: 1.8;
+  max-width: 680px;
+}
+.editor-selection-summary {
+  position: relative;
+  z-index: 1;
+  min-width: 240px;
+  padding: 14px 16px;
+  border: 1px solid rgba(160,120,255,0.18);
+  border-radius: 18px;
+  background: rgba(124, 78, 255, 0.08);
+  color: var(--text);
+  font-size: 0.8rem;
+  line-height: 1.75;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.03);
+}
+.editor-gallery-track {
+  position: relative;
+  z-index: 1;
+  overflow-x: auto;
+  padding-bottom: 6px;
+  scroll-behavior: smooth;
+}
+.editor-gallery-track::-webkit-scrollbar { height: 5px; }
+.editor-gallery-track::-webkit-scrollbar-track { background: transparent; }
+.editor-gallery-track::-webkit-scrollbar-thumb { background: rgba(160,120,255,0.24); border-radius: 999px; }
+.editor-hover-card {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 2;
+  width: min(320px, calc(100vw - 32px));
+  padding: 14px 16px;
+  border: 1px solid rgba(160,120,255,0.22);
+  border-radius: 18px;
+  background: rgba(12, 8, 24, 0.94);
+  box-shadow: 0 16px 44px rgba(0,0,0,0.38);
+  backdrop-filter: blur(16px);
+  pointer-events: none;
+}
+.editor-hover-card[hidden] { display: none !important; }
+.editor-hover-card .hover-media {
+  margin-bottom: 10px;
+  border-radius: 14px;
+  overflow: hidden;
+  border: 1px solid rgba(160,120,255,0.16);
+  background: rgba(255,255,255,0.02);
+}
+.editor-hover-card .hover-media img {
+  display: block;
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  object-fit: cover;
+}
+.editor-hover-card .hover-label {
+  color: var(--accent-bright);
+  font-size: 0.72rem;
+  letter-spacing: 0.1em;
+  margin-bottom: 4px;
+}
+.editor-hover-card .hover-name {
+  color: var(--text-bright);
+  font-size: 0.96rem;
+  font-weight: 700;
+}
+.editor-hover-card .hover-tagline {
+  margin-top: 6px;
+  color: var(--gold);
+  font-size: 0.78rem;
+  line-height: 1.7;
+}
+.editor-hover-card .hover-copy {
+  margin-top: 6px;
+  color: rgba(224, 214, 245, 0.82);
+  font-size: 0.8rem;
+  line-height: 1.7;
+}
+.editor-hover-card .hover-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 10px;
+}
+.editor-hover-card .hover-tag {
+  padding: 4px 8px;
+  border-radius: 999px;
+  border: 1px solid rgba(160,120,255,0.16);
+  background: rgba(124, 78, 255, 0.08);
+  color: var(--text-dim);
+  font-size: 0.68rem;
+  letter-spacing: 0.05em;
+}
+.editor-hover-card .hover-mystery {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid rgba(160,120,255,0.12);
+  color: rgba(199, 157, 255, 0.88);
+  font-size: 0.75rem;
+  line-height: 1.7;
+}
+.char-cards {
+  display: flex;
+  align-items: stretch;
+  gap: 14px;
+  min-width: max-content;
+  padding: 2px 2px 8px;
+}
+.editor-gallery-track .swiper-wrapper {
+  align-items: stretch;
+  transition-timing-function: linear;
+}
+.editor-gallery-track .swiper-slide {
+  width: auto;
+  height: auto;
+}
+
+.char-card {
+  position: relative;
+  flex: 0 0 210px;
+  overflow: hidden;
+  background:
+    linear-gradient(180deg, rgba(33, 23, 66, 0.94), rgba(17, 11, 34, 0.98));
+  border: 1px solid rgba(91, 58, 158, 0.55);
+  border-radius: 22px;
+  padding: 18px 16px 16px;
+  cursor: pointer;
+  transition: var(--transition);
+  box-shadow: 0 14px 36px rgba(7, 4, 18, 0.32);
+}
+.char-card.is-disabled {
+  opacity: 0.82;
+}
+.char-card:hover {
+  transform: translateY(-6px);
+  border-color: var(--border-hi);
+  box-shadow: 0 18px 42px rgba(120,70,220,0.22), 0 0 60px rgba(160,120,255,0.08);
+}
+.editor-gallery-card::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 96px;
+  background: linear-gradient(180deg, rgba(199,157,255,0.14), transparent);
+  pointer-events: none;
+}
+.char-card.selected,
+.char-card.main {
+  border-color: var(--accent);
+  background: var(--bg-card-hv);
+  box-shadow: 0 0 24px rgba(160,120,255,0.30), 0 0 56px rgba(160,120,255,0.12), inset 0 0 28px rgba(160,120,255,0.04);
+  transform: translateY(-3px);
+}
+.char-card.group {
+  border-color: rgba(92,224,184,0.62);
+  box-shadow: 0 0 18px rgba(92,224,184,0.16), 0 10px 30px rgba(7, 4, 18, 0.32);
+}
+.char-card.locked {
+  opacity: 0.72;
+}
+.char-card .char-media {
+  position: relative;
+  height: 120px;
+  margin: -4px -2px 14px;
+  border-radius: 18px;
+  overflow: hidden;
+  border: 1px solid rgba(160,120,255,0.18);
+  background:
+    radial-gradient(circle at 20% 20%, rgba(199,157,255,0.18), transparent 42%),
+    linear-gradient(160deg, rgba(35, 24, 68, 0.94), rgba(14, 10, 27, 0.98));
+}
+.char-card .char-media img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.char-card .char-media::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, rgba(6, 4, 16, 0.02), rgba(6, 4, 16, 0.32));
+}
+.char-card .char-media-fallback {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: rgba(236, 229, 255, 0.92);
+  font-size: 2rem;
+  z-index: 1;
+}
+.char-card .avatar {
+  width: 52px; height: 52px; border-radius: 16px;
+  margin: 0 0 12px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1.2rem; font-weight: 700; color: var(--text-bright);
+}
+.char-card .char-name { font-size: 1rem; font-weight: 700; color: var(--text-bright); letter-spacing: 0.03em; }
+.char-card .char-type {
+  font-size: 0.68rem; color: var(--text-dim); margin-top: 6px;
+  letter-spacing: 0.04em; padding: 2px 8px; border-radius: 10px;
+  background: rgba(160,120,255,0.08); display: inline-block;
+}
+.char-card .char-desc {
+  margin-top: 12px;
+  color: rgba(224, 214, 245, 0.78);
+  font-size: 0.8rem;
+  line-height: 1.75;
+  min-height: 5.2em;
+}
+.char-card .char-state {
+  margin-top: 14px;
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(160,120,255,0.18);
+  background: rgba(255,255,255,0.03);
+  color: var(--text-dim);
+  font-size: 0.7rem;
+  letter-spacing: 0.06em;
+}
+.avatar.professional_editor { background: linear-gradient(135deg, #3a3058, #5b4598); }
+.avatar.reader_editor       { background: linear-gradient(135deg, #30425d, #4b6b8c); }
+.char-card.selected .avatar.professional_editor,
+.char-card.main .avatar.professional_editor { box-shadow: 0 0 18px rgba(130,110,200,0.5); }
+.char-card.selected .avatar.reader_editor,
+.char-card.main .avatar.reader_editor       { box-shadow: 0 0 18px rgba(110,170,220,0.45); }
+
+/* Group chat multi-select state */
+.char-card.in-group,
+.char-card.group {
+  border-color: var(--success);
+  box-shadow: 0 0 14px rgba(92,224,184,0.20);
+}
+.char-card.in-group::after,
+.char-card.group::after {
+  content: "✓";
+  position: absolute;
+  top: 6px; right: 8px;
+  width: 18px; height: 18px;
+  border-radius: 50%;
+  background: var(--success);
+  color: #0b0714;
+  font-size: 0.65rem;
+  font-weight: 700;
+  display: flex; align-items: center; justify-content: center;
+  line-height: 1;
+}
+.char-card.both {  /* both main reviewer AND in group */
+  border-color: var(--accent);
+  box-shadow: 0 0 18px rgba(160,120,255,0.25), 0 0 14px rgba(92,224,184,0.20);
+}
+
+.group-hint {
+  font-size: 0.74rem;
+  color: var(--success);
+  letter-spacing: 0.04em;
+  opacity: 0.8;
+}
+
+/* ============================================================
+   Action Buttons
+   ============================================================ */
+.action-row {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  margin: 24px 0;
+}
+.btn {
+  padding: 12px 32px; border: none; border-radius: 26px;
+  font-size: 0.92rem; font-weight: 600; letter-spacing: 0.06em;
+  cursor: pointer; transition: var(--transition); font-family: var(--font-cn);
+}
+.btn-primary {
+  background: linear-gradient(135deg, var(--accent), #8b5cf6);
+  color: #fff; box-shadow: 0 4px 18px rgba(130,100,240,0.35);
+}
+.btn-primary:hover { box-shadow: 0 6px 28px rgba(160,120,255,0.50); transform: translateY(-1px); }
+.btn-primary:active { transform: translateY(0); }
+.btn-primary:disabled { opacity: 0.4; cursor: not-allowed; box-shadow: none; transform: none; }
+.btn-outline {
+  background: transparent; border: 1.5px solid var(--border);
+  color: var(--text-dim);
+}
+.btn-outline:hover { border-color: var(--accent); color: var(--accent-bright); }
+.btn-ghost {
+  background: rgba(124, 78, 255, 0.08);
+  border: 1.5px solid rgba(160,120,255,0.24);
+  color: var(--text-bright);
+}
+.btn-ghost:hover {
+  transform: translateY(-1px);
+  border-color: var(--accent);
+  box-shadow: 0 8px 24px rgba(160,120,255,0.14);
+}
+
+/* ============================================================
+   Loading
+   ============================================================ */
+.loading {
+  display: none; text-align: center; padding: 24px; color: var(--text-dim);
+}
+.loading.visible { display: block; animation: fadeIn 0.3s ease; }
+.loading .dots { display: flex; gap: 5px; justify-content: center; margin-bottom: 10px; }
+.loading .dots span {
+  width: 7px; height: 7px; border-radius: 50%; background: var(--accent);
+  animation: bounce 1.2s infinite ease-in-out;
+}
+.loading .dots span:nth-child(2) { animation-delay: 0.15s; }
+.loading .dots span:nth-child(3) { animation-delay: 0.3s; }
+
+/* ---- Export & Card Actions ---- */
+.card-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 18px;
+  justify-content: flex-end;
+}
+.btn-export {
+  padding: 8px 18px;
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  background: transparent;
+  color: var(--text-dim);
+  cursor: pointer;
+  font-size: 0.8rem;
+  letter-spacing: 0.04em;
+  transition: var(--transition);
+  font-family: var(--font-cn);
+}
+.btn-export:hover { border-color: var(--accent); color: var(--accent-bright); }
+
+/* ---- Manuscript Health Report ---- */
+.report-section {
+  margin-bottom: 18px;
+}
+.report-shell {
+  background:
+    linear-gradient(160deg, rgba(19, 12, 38, 0.98), rgba(14, 10, 28, 0.98));
+  border: 1px solid rgba(91, 58, 158, 0.55);
+  border-radius: 22px;
+  padding: 24px 22px;
+  box-shadow: 0 14px 44px rgba(9, 6, 22, 0.35), inset 0 1px 0 rgba(255,255,255,0.03);
+}
+.report-topbar {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+.report-kicker {
+  color: var(--gold);
+  font-size: 0.72rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  margin-bottom: 6px;
+}
+.report-topbar h3 {
+  font-size: 1rem;
+  color: var(--text-bright);
+  line-height: 1.6;
+  font-weight: 700;
+}
+.btn-mini {
+  padding: 8px 14px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: rgba(124, 78, 255, 0.08);
+  color: var(--text-dim);
+  cursor: pointer;
+  transition: var(--transition);
+  font-size: 0.78rem;
+  white-space: nowrap;
+}
+.btn-mini:hover {
+  border-color: var(--accent);
+  color: var(--accent-bright);
+}
+.report-placeholder {
+  border: 1px dashed rgba(91, 58, 158, 0.55);
+  border-radius: 18px;
+  padding: 24px;
+  text-align: center;
+  color: var(--text-dim);
+  line-height: 1.9;
+  background: rgba(124, 78, 255, 0.05);
+}
+.report-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.report-summary-card,
+.report-score-card,
+.report-list-card {
+  border: 1px solid rgba(91, 58, 158, 0.5);
+  border-radius: 18px;
+  background: rgba(18, 12, 35, 0.88);
+  padding: 18px;
+}
+.report-summary-card h4,
+.report-score-card h4,
+.report-list-card h4 {
+  color: var(--text-bright);
+  font-size: 0.88rem;
+  margin-bottom: 10px;
+  letter-spacing: 0.05em;
+}
+.report-meta {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 14px;
+}
+.report-meta-item {
+  padding: 12px;
+  border-radius: 14px;
+  background: rgba(124, 78, 255, 0.08);
+  border: 1px solid rgba(160,120,255,0.12);
+}
+.report-meta-item .label {
+  display: block;
+  color: var(--text-dim);
+  font-size: 0.72rem;
+  margin-bottom: 4px;
+  letter-spacing: 0.08em;
+}
+.report-meta-item .value {
+  color: var(--text-bright);
+  font-size: 0.86rem;
+  line-height: 1.6;
+}
+.report-score-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+.report-score-row {
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: rgba(124, 78, 255, 0.06);
+}
+.report-score-row .top {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.82rem;
+  margin-bottom: 8px;
+}
+.report-score-row .top strong {
+  color: var(--text-bright);
+}
+.report-score-row .top span {
+  color: var(--gold);
+}
+.report-bar {
+  height: 8px;
+  border-radius: 999px;
+  background: rgba(255,255,255,0.06);
+  overflow: hidden;
+}
+.report-bar-fill {
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #7c4eff, #c79dff);
+  box-shadow: 0 0 20px rgba(160,120,255,0.22);
+}
+.report-columns {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+.report-list-card ul {
+  padding-left: 18px;
+  color: var(--text);
+  line-height: 1.8;
+}
+.report-list-card li + li {
+  margin-top: 8px;
+}
+.report-editors {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 12px;
+}
+.report-editor-btn {
+  padding: 8px 14px;
+  border-radius: 999px;
+  border: 1px solid rgba(92,224,184,0.28);
+  background: rgba(92,224,184,0.09);
+  color: var(--success);
+  cursor: pointer;
+  transition: var(--transition);
+}
+.report-editor-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 8px 24px rgba(92,224,184,0.12);
+}
+
+/* ============================================================
+   Result Card
+   ============================================================ */
+.result-section { display: none; }
+.result-section.visible { display: block; animation: fadeIn 0.5s ease; }
+.result-card {
+  background: linear-gradient(160deg, #1a1235 0%, #1e163d 50%, #191030 100%);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 32px 28px;
+  position: relative;
+  box-shadow: 0 8px 40px rgba(0,0,0,0.4), 0 0 80px rgba(120,70,220,0.06);
+}
+.result-card::before {
+  content: ""; position: absolute; top: 0; left: 0; right: 0; height: 3px;
+  background: linear-gradient(90deg, transparent, var(--accent), var(--accent-bright), var(--accent), transparent);
+  opacity: 0.5;
+}
+.result-card .result-header {
+  display: flex; align-items: center; gap: 12px;
+  margin-bottom: 20px; padding-bottom: 14px; border-bottom: 1px solid var(--border);
+}
+.result-card .result-header .reviewer-avatar {
+  width: 38px; height: 38px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1rem; font-weight: 700; color: #fff;
+}
+.result-card .result-header .reviewer-info .name {
+  font-weight: 600; font-size: 0.95rem; color: var(--text-bright);
+}
+.result-card .result-header .reviewer-info .label {
+  font-size: 0.7rem; color: var(--text-dim); letter-spacing: 0.06em;
+}
+.result-content {
+  color: var(--text); line-height: 1.85; font-size: 0.9rem;
+  white-space: pre-wrap; word-break: break-word;
+}
+.result-content h1,.result-content h2,.result-content h3,.result-content h4 {
+  color: var(--accent-bright); margin: 1.2em 0 0.5em; font-size: 1rem;
+}
+.result-content strong { color: var(--text-bright); }
+.result-content em { color: var(--accent-gl); }
+.result-content blockquote {
+  border-left: 3px solid var(--accent); padding-left: 14px;
+  margin: 0.8em 0; color: var(--text-dim); font-style: italic;
+}
+.result-content code {
+  background: rgba(160,120,255,0.12); padding: 1px 6px;
+  border-radius: 3px; font-size: 0.88em; color: var(--accent-gl);
+}
+.result-content hr { border: none; border-top: 1px solid var(--border); margin: 1.2em 0; }
+.result-content table { border-collapse: collapse; width: 100%; margin: 1em 0; font-size: 0.82rem; }
+.result-content th,.result-content td { border: 1px solid var(--border); padding: 8px 12px; text-align: left; }
+.result-content th { background: rgba(160,120,255,0.08); color: var(--accent-gl); }
+.result-content ul,.result-content ol { padding-left: 1.5em; margin: 0.5em 0; }
+
+/* Streaming cursor */
+.stream-cursor { display: inline; color: var(--accent); animation: blink 0.7s infinite; }
+@keyframes blink { 0%,100%{opacity:1} 50%{opacity:0} }
+
+/* ============================================================
+   Toast
+   ============================================================ */
+.toast {
+  position: fixed; top: 24px; left: 50%; transform: translateX(-50%);
+  background: #2d1520; border: 1px solid #8b4a55; color: var(--danger);
+  padding: 12px 28px; border-radius: 28px; font-size: 0.85rem;
+  letter-spacing: 0.03em; z-index: 999; animation: fadeIn 0.3s ease;
+  box-shadow: 0 6px 24px rgba(255,100,120,0.15);
+}
+
+/* ============================================================
+   Footer
+   ============================================================ */
+.footer {
+  text-align: center; padding: 32px 0 16px;
+  color: var(--text-dim); font-size: 0.7rem;
+  letter-spacing: 0.06em; opacity: 0.5;
+}
+
+/* ============================================================
+   Animations
+   ============================================================ */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes bounce {
+  0%, 80%, 100% { transform: scale(0.6); opacity: 0.4; }
+  40%            { transform: scale(1);   opacity: 1; }
+}
+
+/* ============================================================
+   Responsive — stack on narrow screens
+   ============================================================ */
+@media (max-width: 820px) {
+  .container { padding: 0 14px; }
+  .dual-panel { flex-direction: column; }
+  .chat-panel { flex: 0 0 auto; }
+  .review-panel { flex: 1; }
+  .main-content { padding: 20px 0 0; }
+  .header h1 { font-size: 1.6rem; }
+  .hero-copy { font-size: 0.88rem; }
+  .editor-gallery-shell { padding: 18px 16px 90px; }
+  .editor-gallery-head { flex-direction: column; }
+  .editor-selection-summary { min-width: 0; width: 100%; }
+  .editor-hover-card {
+    right: 16px;
+    left: 16px;
+    bottom: 16px;
+    width: auto;
+  }
+  .char-cards { gap: 10px; }
+  .char-card { flex: 0 0 180px; padding: 16px 14px 14px; }
+  .demo-banner,
+  .report-topbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .report-meta,
+  .report-score-grid,
+  .report-columns {
+    grid-template-columns: 1fr;
+  }
+  .action-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}
+</style>
+</head>
+<body>
+
+<div id="editorial-bg" aria-hidden="true">
+  <div class="editorial-bg-layer editorial-bg-image" data-parallax-factor="10"></div>
+  <div class="editorial-bg-layer editorial-bg-glow editorial-bg-glow-left" data-parallax-factor="16"></div>
+  <div class="editorial-bg-layer editorial-bg-glow editorial-bg-glow-right" data-parallax-factor="-12"></div>
+  <div class="editorial-bg-layer editorial-bg-grain" data-parallax-factor="6"></div>
+</div>
+
+<div class="container">
+
+  <!-- ══════════════════════════════════════════════════════ -->
+  <!--  MAIN CONTENT (controls above the fold)             -->
+  <!-- ══════════════════════════════════════════════════════ -->
+  <div class="main-content">
+
+    <!-- Header -->
+    <header class="header">
+      <div class="hero-badge">比赛展示版 · AI 小说编辑部</div>
+      <h1>Pieris编辑部</h1>
+      <p class="subtitle">多 角 色 · 长 评 锐 评 · 编 辑 群 聊 · 作 品 体 检 报 告</p>
+      <p class="hero-copy">给不敢轻易发文的新作者，一间能说真话、能看整体、也能当场聊起来的 AI 编辑部。</p>
+      <div class="hero-metrics">
+        <span>8 位编辑角色</span>
+        <span>TXT / EPUB 上传</span>
+        <span>扫码可直接体验</span>
+      </div>
+      <div class="feature-pills">
+        <span>主编长评</span>
+        <span>编辑群聊</span>
+        <span>作品体检报告</span>
+        <span>PWA 可安装</span>
+      </div>
+    </header>
+
+    <!-- Settings Bar -->
+    <div class="settings-bar">
+      <button class="settings-btn" id="btn-toggle-key" title="展开/收起 API Key 设置">🔑 API 设置</button>
+      <button class="settings-btn" id="btn-toggle-sound" title="开关音效">🔇 音效</button>
+    </div>
+
+    <div class="demo-banner" id="demo-banner" hidden>
+      <div class="demo-banner-title">演示模式检测中</div>
+      <div class="demo-banner-text" id="demo-banner-text">正在检查当前是否支持免 Key 体验。</div>
+    </div>
+
+    <!-- API Key (collapsible, default folded for demo) -->
+    <div class="api-key-section folded" id="api-key-section">
+      <div class="api-key-row">
+        <label for="api-key">🔑 API Key</label>
+        <input type="password" id="api-key" placeholder="sk-... 你的 DeepSeek API Key">
+        <button class="btn-verify" id="btn-verify" title="验证 API Key 是否有效">验证</button>
+        <span class="verify-status" id="verify-status"></span>
+      </div>
+    </div>
+
+    <!-- Upload Zone -->
+    <div class="upload-zone" id="upload-zone">
+      <span class="icon">📂</span>
+      <p class="label">点击或拖拽上传 TXT / EPUB 文件</p>
+      <p class="hint">支持 UTF-8 / GBK 编码 TXT，以及 EPUB 电子书</p>
+      <input type="file" id="file-input" accept=".txt,.epub">
+    </div>
+
+    <!-- Chapter Selector -->
+    <div class="chapter-section" id="chapter-section">
+      <h3>📑 选择要评的章节</h3>
+      <div class="chapter-list" id="chapter-list"></div>
+    </div>
+
+    <!-- Character Gallery -->
+    <section class="editor-gallery-shell" id="editor-gallery">
+      <div class="editor-gallery-head">
+        <div>
+          <div class="editor-gallery-kicker">Editor Gallery</div>
+          <h3>挑一位主评编辑，再决定谁进入内部讨论</h3>
+          <p>左键选主评，右键或再次点击加入群聊。当前版本先保留原有角色卡渲染与交互逻辑，仅把它们装进新的展廊骨架里。</p>
+          <div class="group-hint" id="group-hint">| 右键/Ctrl+点击 选群聊成员</div>
+        </div>
+        <div class="editor-selection-summary" id="editor-selection-summary">尚未选择主评编辑。上传稿件并选择章节后，可开始配置本次展廊阵容。</div>
+      </div>
+      <div class="editor-gallery-track swiper" id="editor-gallery-track">
+        <div class="char-cards swiper-wrapper" id="char-cards"></div>
+      </div>
+      <div class="editor-hover-card" id="editor-hover-card" hidden></div>
+    </section>
+
+    <!-- Action Buttons -->
+    <div class="action-row">
+      <button class="btn btn-primary" id="btn-review" disabled>⚡ 开始锐评</button>
+      <button class="btn btn-ghost" id="btn-report" disabled>🧬 生成体检报告</button>
+      <button class="btn btn-outline" id="btn-reroll" style="display:none">🔄 换人重评</button>
+    </div>
+
+    <!-- Loading -->
+    <div class="loading" id="loading">
+      <div class="dots"><span></span><span></span><span></span></div>
+      <p>编辑正在读稿中……</p>
+    </div>
+
+  </div><!-- /main-content -->
+
+  <!-- ══════════════════════════════════════════════════════ -->
+  <!--  DUAL PANEL — Group Chat + Review side by side      -->
+  <!-- ══════════════════════════════════════════════════════ -->
+  <div class="dual-panel" id="dual-panel">
+
+    <!-- Left: QQ Group Chat -->
+    <div class="chat-panel">
+      <div class="chat-header">
+        <span class="dot"></span> 秘 密 結 社 Pieris 編 集 部
+        <span class="members">铁板 · 余墨 · 知苑</span>
+      </div>
+      <div class="chat-messages" id="chat-messages">
+        <div class="chat-placeholder" id="chat-placeholder">
+          点击「开始锐评」后<br>入群编辑将在此展开讨论
+        </div>
+      </div>
+      <div class="chat-status" id="chat-status"></div>
+    </div>
+
+    <!-- Right: Main Review -->
+    <div class="review-panel">
+      <div class="report-section" id="report-section">
+        <div class="report-shell">
+          <div class="report-topbar">
+            <div>
+              <div class="report-kicker">作品体检报告</div>
+              <h3>从题材、人物、节奏与可读性快速看清稿件状态</h3>
+            </div>
+            <button class="btn-mini" id="btn-report-inline" style="display:none">重新生成</button>
+          </div>
+          <div class="report-placeholder" id="report-placeholder">
+            上传稿件并选择章节后，点击「生成体检报告」<br>即可获得可视化诊断结果
+          </div>
+          <div class="report-grid" id="report-grid" style="display:none"></div>
+        </div>
+      </div>
+      <div class="result-section" id="result-section">
+        <div class="result-card" id="result-card"></div>
+        <div class="card-actions" id="card-actions" style="display:none">
+          <button class="btn-export" id="btn-export-txt">📄 导出 TXT</button>
+          <button class="btn-export" id="btn-export-print">🖨 打印</button>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /dual-panel -->
+
+  <!-- Footer -->
+  <p class="footer">Pieris编辑部 · 所有角色点评均为虚构创作</p>
+
+</div><!-- /container -->
+
+<!-- Toast container -->
+<div id="toast-container"></div>
+
+<script src="/vendor/swiper-bundle.min.js"></script>
+<script src="/vendor/floating-ui.core.min.js"></script>
+<script src="/vendor/floating-ui.dom.min.js"></script>
+<script src="/chat-state.js"></script>
+<script>
+/* ================================================================
+   Config
+   ================================================================ */
+const API_BASE = window.location.origin;
+const ChatState = window.PierisChatState;
+
+const GALLERY_IMAGE_MAP = {
+  '丰川祥子': '/gallery-assets/丰川祥子.jpg',
+  '克莱恩': '/gallery-assets/克莱恩.jpg',
+  '贴吧哥': '/gallery-assets/贴吧哥.jpg',
+};
+
+/* ================================================================
+   Data: Characters
+   ================================================================ */
+const CHARACTERS = [
+  { id: "余墨",     name: "余墨",     type: "professional_editor", typeLabel: "专业编辑", emoji: "☕", desc: "同辈视角拆卡点，兼顾整体框架与可改性", tagline: "像陪你熬夜改稿的前辈，一开口就能点到真问题", fullDesc: "他会先说自己在哪一段停住了，再把卡点拆成作者能立刻下手的动作。语气不端着，但优先级很清楚，像把混乱稿面一层层拨开。", tags: ["同辈改稿", "结构卡点", "可执行建议"], image: "", thumb: "", mysteryLine: "他看着像在闲聊，可下一句往往就是那把真正落下来的刀。" },
+  { id: "墨天平",   name: "墨天平",   type: "professional_editor", typeLabel: "专业编辑", emoji: "⚖️", desc: "主编级逻辑核验，专盯因果链与结构根因", tagline: "主编视角校验因果，连失衡都能找到源头", fullDesc: "他不陪你兜圈子，只追问结构为什么成立、动机为什么成立、顺序为什么必须如此。读完他的判断，你通常会第一次看清这篇稿子究竟卡在表层还是根部。", tags: ["主编审查", "因果链", "结构根因"], image: "", thumb: "", mysteryLine: "当他说“经分析”时，通常意味着稿子已经没有多余的借口了。" },
+  { id: "铁板",     name: "铁板",     type: "professional_editor", typeLabel: "专业编辑", emoji: "🪨", desc: "批注式硬审，直切题材骨架与完成度", tagline: "老派硬审，不绕弯，只给准话", fullDesc: "他读稿像落批注：哪里虚，哪里断，哪里该删，哪里还能留。没有安慰性的铺垫，只有一句句往骨架上敲的判断，短，但很准。", tags: ["批注式", "硬审", "语言骨架"], image: "", thumb: "", mysteryLine: "他很少提高声音，可最短的那句，往往最难逃。" },
+  { id: "贴吧哥",   name: "贴吧哥",   type: "reader_editor",       typeLabel: "读者型编辑", emoji: "🔥", desc: "高压缩嘴替读者，专抓套路味与节奏纯度", tagline: "负责把“哪里绷了”翻译成谁都听得懂的人话", fullDesc: "他会先替读者把那口气喷出来，再迅速补上为什么绷、哪里水、哪段像模板在顶着走。嘴很快，但不是空喷，梗后面一定跟着真问题。", tags: ["嘴替读者", "套路探测", "节奏纯度"], image: "/gallery-assets/贴吧哥.jpg", thumb: "/gallery-assets/贴吧哥.jpg", mysteryLine: "他像在开玩笑，可每次笑点落下去，都会带出一处更难看的真相。" },
+  { id: "知苑",     name: "知苑",     type: "reader_editor",       typeLabel: "读者型编辑", emoji: "🌙", desc: "校对情绪抵达与阅读接收偏差的温和读者", tagline: "他分得清作者想说什么，和读者实际收到什么", fullDesc: "知苑的锋利藏得很轻。他会先承认自己接住了哪些情绪，再指出哪一段其实只剩解释、还没真正打到人，像替你的文字做一次读者回声测试。", tags: ["情绪校对", "读感偏差", "细节落点"], image: "", thumb: "", mysteryLine: "他总把话说得很轻，可那句“我没收到”常常比否定更重。" },
+  { id: "李星云",   name: "李星云",   type: "reader_editor",       typeLabel: "读者型编辑", emoji: "🌊", desc: "看人物魂魄、命运重量与故事气脉", tagline: "先看人活没活，再看这条命是不是顺着走出去", fullDesc: "他不急着分析术语，只盯着人物有没有真气、转折是不是顺势、命运有没有重量。若故事有魂，他会一眼认出来；若只是作者在推，他也会立刻听出那口假气。", tags: ["人物魂魄", "命运重量", "故事气脉"], image: "", thumb: "", mysteryLine: "他像在看风向，可真正被他盯住的，往往是那一步还没落地的命。" },
+  { id: "丰川祥子", name: "丰川祥子", type: "reader_editor",       typeLabel: "读者型编辑", emoji: "🎼", desc: "大小姐口吻审视稿子是否体面、是否失控", tagline: "她在意的不是热闹，而是这篇东西能不能体面地站上舞台", fullDesc: "丰川祥子会先看你的文字有没有掌控住自己的野心。氛围可以华丽，情绪可以尖锐，但若收束不住、代价不成立、舞台只剩布景，她会很安静地判你失控。", tags: ["舞台感", "体面收束", "控制欲"], image: "/gallery-assets/丰川祥子.jpg", thumb: "/gallery-assets/丰川祥子.jpg", mysteryLine: "她的语气越平静，越说明那场真正的审判已经在幕布后开始了。" },
+  { id: "克莱恩",   name: "克莱恩",   type: "reader_editor",       typeLabel: "读者型编辑", emoji: "🕯️", desc: "谨慎观察、先留后手、盯住暗线的读者", tagline: "先不急着下结论，他更在意这篇稿子值不值得继续押注", fullDesc: "克莱恩会礼貌地保留判断，先看暗线能不能回响，伏笔是不是只是雾气，读者的注意力该停在哪里。若他愿意继续观察，说明这篇稿子里至少还有值得守住的锚点。", tags: ["谨慎观察", "暗线回收", "留后手"], image: "/gallery-assets/克莱恩.jpg", thumb: "/gallery-assets/克莱恩.jpg", mysteryLine: "他嘴上说再看看，可那点被他记住的异常，通常不会只是巧合。" },
+];
+
+// Group chat order (must match backend GROUP_CHAT_ORDER)
+const GROUP_ORDER = ["铁板", "余墨", "知苑", "铁板", "余墨", "知苑", "铁板", "余墨", "知苑"];
+const GROUP_AVATARS = { "铁板": "🪨", "余墨": "☕", "知苑": "🌙", "墨天平": "⚖️", "贴吧哥": "🔥", "李星云": "🌊", "丰川祥子": "🎼", "克莱恩": "🕯️" };
+
+/* ================================================================
+   State
+   ================================================================ */
+let selectedCharacter = null;
+let groupMembers = [];           // array of character IDs in group chat
+let uploadedChapters = [];
+let selectedChapterIndices = [];  // multi-select: up to 7 chapter indices
+let useFullText = false;          // true when "全文" is selected
+let fullText = "";
+let activeReviewAbort = null;
+let activeGroupAbort = null;
+let activeReportAbort = null;
+let chatMsgIndex = 0;      // how many group messages received
+let currentChatOrder = [];  // dynamic order from SSE, used by fillRemainingChatSlots
+let activeChatSessionId = 0;
+let activeHoverCardId = null;
+let stopHoverCardAutoUpdate = null;
+let editorGallerySwiper = null;
+let editorGalleryResumeTimer = null;
+let isEditorGalleryPointerDown = false;
+let demoStatus = {
+  enabled: false,
+  available: false,
+  requires_api_key: true,
+  message: "请填写 API Key。",
+};
+
+/* ================================================================
+   DOM Refs
+   ================================================================ */
+const $ = (s) => document.querySelector(s);
+const $$ = (s) => document.querySelectorAll(s);
+
+const uploadZone    = $("#upload-zone");
+const fileInput     = $("#file-input");
+const chapterSec    = $("#chapter-section");
+const chapterList   = $("#chapter-list");
+const charCards     = $("#char-cards");
+const btnReview     = $("#btn-review");
+const btnReport     = $("#btn-report");
+const btnReportInline = $("#btn-report-inline");
+const btnReroll     = $("#btn-reroll");
+const loadingEl     = $("#loading");
+const dualPanel     = $("#dual-panel");
+const resultSec     = $("#result-section");
+const resultCard    = $("#result-card");
+const toastContainer= $("#toast-container");
+const apiKeyInput   = $("#api-key");
+const chatMessages  = $("#chat-messages");
+const chatPlaceholder= $("#chat-placeholder");
+const chatStatus    = $("#chat-status");
+const reportGrid    = $("#report-grid");
+const reportPlaceholder = $("#report-placeholder");
+const reportSection = $("#report-section");
+const demoBanner    = $("#demo-banner");
+const demoBannerText = $("#demo-banner-text");
+const editorGallery = $("#editor-gallery");
+const editorGalleryTrack = $("#editor-gallery-track");
+const editorHoverCard = $("#editor-hover-card");
+const editorSelectionSummary = $("#editor-selection-summary");
+
+/* ================================================================
+   Toast
+   ================================================================ */
+function toast(msg) {
+  const el = document.createElement("div");
+  el.className = "toast";
+  el.textContent = msg;
+  toastContainer.appendChild(el);
+  setTimeout(() => { el.style.opacity = "0"; el.style.transition = "opacity 0.4s"; }, 2800);
+  setTimeout(() => el.remove(), 3300);
+}
+
+function hasRuntimeAccess() {
+  return !!apiKeyInput.value.trim() || (demoStatus.enabled && demoStatus.available);
+}
+
+function syncDemoModeUI() {
+  if (demoStatus.enabled) {
+    demoBanner.hidden = false;
+    const title = demoBanner.querySelector(".demo-banner-title");
+    title.textContent = demoStatus.available ? "免 Key 演示模式已启用" : "演示模式暂不可用";
+    demoBannerText.textContent = demoStatus.message;
+    if (demoStatus.available && !apiKeyInput.value.trim()) {
+      keyFolded = true;
+      apiKeySection.classList.add("folded");
+      localStorage.setItem("pieris_key_folded", "true");
+    } else if (!demoStatus.available && !apiKeyInput.value.trim()) {
+      keyFolded = false;
+      apiKeySection.classList.remove("folded");
+      localStorage.setItem("pieris_key_folded", "false");
+    }
+    apiKeyInput.placeholder = demoStatus.available
+      ? "比赛演示额度有限，先到先得；如需切换自己的 DeepSeek Key，可在这里填写"
+      : "sk-... 项目演示额度为临时提供；如需继续使用，请填写你自己的 DeepSeek API Key";
+  } else {
+    demoBanner.hidden = true;
+    apiKeyInput.placeholder = "sk-... 你的 DeepSeek API Key";
+  }
+
+  updateKeyToggleBtn();
+  updateReviewButton();
+}
+
+async function refreshDemoStatus() {
+  try {
+    const resp = await fetch(API_BASE + "/demo-status");
+    const data = await resp.json();
+    demoStatus = Object.assign({}, demoStatus, data || {});
+  } catch (_err) {
+    demoStatus = {
+      enabled: false,
+      available: false,
+      requires_api_key: true,
+      message: "请填写 API Key。",
+    };
+  }
+  syncDemoModeUI();
+}
+
+/* ================================================================
+   Character Cards
+   ================================================================ */
+function renderEditorGalleryCard(c) {
+  const imageSrc = c.thumb || c.image || GALLERY_IMAGE_MAP[c.name] || "";
+  return `
+    <div class="swiper-slide char-card editor-gallery-card" data-id="${c.id}" data-type="${c.type}">
+      <div class="char-media">
+        ${imageSrc ? `<img src="${escapeHtml(imageSrc)}" alt="${escapeHtml(c.name)}">` : `<div class="char-media-fallback">${c.emoji}</div>`}
+      </div>
+      <div class="avatar ${c.type}">${c.emoji}</div>
+      <div class="char-name">${c.name}</div>
+      <div class="char-type">${c.typeLabel}</div>
+      <div class="char-desc">${c.tagline || c.desc}</div>
+      <div class="char-state">待命中</div>
+    </div>
+  `;
+}
+
+function renderCharCards() {
+  charCards.innerHTML = CHARACTERS.map(renderEditorGalleryCard).join("");
+
+  if (charCards.dataset.galleryBound === "true") return;
+  charCards.dataset.galleryBound = "true";
+
+  charCards.addEventListener("click", (e) => {
+    const card = e.target.closest(".editor-gallery-card");
+    if (!card) return;
+    const id = card.dataset.id;
+    if (isSelectionBlocked()) {
+      toast("先上传稿件、选择章节，并准备好可用的 API 运行权限。");
+      return;
+    }
+
+    if (e.ctrlKey || e.metaKey) {
+      e.preventDefault();
+      toggleGroupMember(id);
+      return;
+    }
+
+    if (id === selectedCharacter) {
+      toggleGroupMember(id);
+      return;
+    }
+
+    selectCharacter(id);
+  });
+
+  charCards.addEventListener("contextmenu", (e) => {
+    const card = e.target.closest(".editor-gallery-card");
+    if (!card) return;
+    e.preventDefault();
+    if (isSelectionBlocked()) {
+      toast("先上传稿件、选择章节，并准备好可用的 API 运行权限。");
+      return;
+    }
+    const id = card.dataset.id;
+    toggleGroupMember(id);
+  });
+
+  charCards.addEventListener("mouseover", (e) => {
+    const card = e.target.closest(".editor-gallery-card");
+    if (!card) return;
+    if (e.relatedTarget && card.contains(e.relatedTarget)) return;
+    const id = card.dataset.id;
+    if (isLockedCard(id)) return;
+    const character = CHARACTERS.find(c => c.id === id);
+    if (!character) return;
+    showEditorHoverCard(card, character);
+  });
+
+  charCards.addEventListener("mouseout", (e) => {
+    const card = e.target.closest(".editor-gallery-card");
+    if (!card) return;
+    if (e.relatedTarget && card.contains(e.relatedTarget)) return;
+    hideEditorHoverCard();
+  });
+}
+
+function isLockedCard(id) {
+  if (!CHARACTERS.some(character => character.id === id)) return true;
+  return id === selectedCharacter || groupMembers.includes(id);
+}
+
+function isSelectionBlocked() {
+  const hasFile = uploadedChapters.length > 0;
+  const hasChapter = useFullText || selectedChapterIndices.length > 0;
+  if (!hasFile || !hasChapter || !hasRuntimeAccess()) {
+    return true;
+  }
+  return false;
+}
+
+function renderEditorHoverCard(character) {
+  if (!editorHoverCard || !character) return;
+  const imageSrc = character.image || GALLERY_IMAGE_MAP[character.name] || "";
+  const tags = Array.isArray(character.tags) ? character.tags : [];
+  editorHoverCard.innerHTML = `
+    ${imageSrc ? `<div class="hover-media"><img src="${escapeHtml(imageSrc)}" alt="${escapeHtml(character.name || "")}"></div>` : ""}
+    <div class="hover-label">${escapeHtml(character.typeLabel || "")}</div>
+    <div class="hover-name">${escapeHtml(character.name || "")}</div>
+    <div class="hover-tagline">${escapeHtml(character.tagline || character.desc || "")}</div>
+    <div class="hover-copy">${escapeHtml(character.fullDesc || character.desc || "")}</div>
+    ${tags.length ? `<div class="hover-tags">${tags.map(tag => `<span class="hover-tag">${escapeHtml(tag)}</span>`).join("")}</div>` : ""}
+    ${character.mysteryLine ? `<div class="hover-mystery">${escapeHtml(character.mysteryLine)}</div>` : ""}
+  `;
+}
+
+function showEditorHoverCard(target, character) {
+  if (!editorHoverCard || !target || !character) return;
+  renderEditorHoverCard(character);
+  activeHoverCardId = character.id;
+  editorHoverCard.hidden = false;
+  if (stopHoverCardAutoUpdate) {
+    stopHoverCardAutoUpdate();
+    stopHoverCardAutoUpdate = null;
+  }
+  const floatingUi = window.FloatingUIDOM;
+  if (!floatingUi || typeof floatingUi.computePosition !== "function") return;
+
+  const updatePosition = () => {
+    floatingUi.computePosition(target, editorHoverCard, {
+      placement: "right-start",
+      middleware: [
+        floatingUi.offset(14),
+        floatingUi.flip({ padding: 16 }),
+        floatingUi.shift({ padding: 16 }),
+      ],
+    }).then(({ x, y }) => {
+      editorHoverCard.style.left = `${x}px`;
+      editorHoverCard.style.top = `${y}px`;
+    }).catch(() => {});
+  };
+
+  updatePosition();
+  if (typeof floatingUi.autoUpdate === "function") {
+    stopHoverCardAutoUpdate = floatingUi.autoUpdate(target, editorHoverCard, updatePosition);
+  }
+}
+
+function hideEditorHoverCard() {
+  if (!editorHoverCard) return;
+  activeHoverCardId = null;
+  if (stopHoverCardAutoUpdate) {
+    stopHoverCardAutoUpdate();
+    stopHoverCardAutoUpdate = null;
+  }
+  editorHoverCard.hidden = true;
+}
+
+function syncEditorGalleryState() {
+  const hasFile = uploadedChapters.length > 0;
+  const hasChapter = useFullText || selectedChapterIndices.length > 0;
+  const hasRuntime = hasRuntimeAccess();
+  const mainCharacter = CHARACTERS.find(c => c.id === selectedCharacter);
+  const groupNames = groupMembers.map(id => {
+    const char = CHARACTERS.find(c => c.id === id);
+    return char ? char.name : id;
+  });
+
+  if (editorSelectionSummary) {
+    if (!mainCharacter) {
+      editorSelectionSummary.textContent = "尚未选择主评编辑。先挑一位角色，再决定谁进入群聊。";
+    } else if (groupNames.length >= 2) {
+      editorSelectionSummary.textContent = `主评：${mainCharacter.name}。群聊阵容：${groupNames.join(" / ")}。`;
+    } else if (groupNames.length === 1) {
+      editorSelectionSummary.textContent = `主评：${mainCharacter.name}。群聊还差 1 位成员即可成组。`;
+    } else {
+      editorSelectionSummary.textContent = `主评：${mainCharacter.name}。当前仅单人锐评，右键或再次点击可追加群聊成员。`;
+    }
+
+    if (!hasFile || !hasChapter || !hasRuntime) {
+      const blockers = [];
+      if (!hasFile) blockers.push("上传稿件");
+      if (!hasChapter) blockers.push("选择章节");
+      if (!hasRuntime) blockers.push("准备运行权限");
+      editorSelectionSummary.textContent += ` 当前待完成：${blockers.join(" / ")}。`;
+    }
+  }
+
+  editorGalleryTrack.querySelectorAll(".editor-gallery-card[data-id]").forEach(card => {
+    const id = card.dataset.id;
+    const isMain = id === selectedCharacter;
+    const inGroup = groupMembers.includes(id);
+    const locked = isLockedCard(id);
+    const disabled = isSelectionBlocked();
+    const stateEl = card.querySelector(".char-state");
+    card.classList.toggle("swiper-slide", true);
+    card.classList.toggle("char-card", true);
+    card.classList.toggle("editor-gallery-card", true);
+    card.classList.toggle("selected", isMain);
+    card.classList.toggle("main", isMain);
+    card.classList.toggle("is-main", isMain);
+    card.classList.toggle("group", inGroup);
+    card.classList.toggle("in-group", inGroup);
+    card.classList.toggle("is-group", inGroup);
+    card.classList.toggle("both", inGroup && isMain);
+    card.classList.toggle("locked", locked);
+    card.classList.toggle("is-locked", locked);
+    card.classList.toggle("is-disabled", disabled && !locked);
+    if (!stateEl) return;
+    if (isMain && inGroup) {
+      stateEl.textContent = "主评 / 群聊";
+    } else if (isMain) {
+      stateEl.textContent = "主评已锁定";
+    } else if (inGroup) {
+      stateEl.textContent = "群聊成员";
+    } else if (disabled) {
+      stateEl.textContent = "等待稿件";
+    } else {
+      stateEl.textContent = "可加入阵容";
+    }
+  });
+
+  if (activeHoverCardId && isLockedCard(activeHoverCardId)) {
+    hideEditorHoverCard();
+  }
+}
+
+function stopEditorGalleryAutoplay() {
+  if (editorGalleryResumeTimer) {
+    clearTimeout(editorGalleryResumeTimer);
+    editorGalleryResumeTimer = null;
+  }
+  if (editorGallerySwiper?.autoplay?.running) {
+    editorGallerySwiper.autoplay.stop();
+  }
+}
+
+function resumeGalleryAutoplay(delay = 1400) {
+  if (!editorGallerySwiper?.autoplay) return;
+  if (editorGalleryResumeTimer) {
+    clearTimeout(editorGalleryResumeTimer);
+  }
+  editorGalleryResumeTimer = window.setTimeout(() => {
+    editorGalleryResumeTimer = null;
+    if (document.hidden || isEditorGalleryPointerDown) return;
+    if (!editorGallerySwiper.autoplay.running) {
+      editorGallerySwiper.autoplay.start();
+    }
+  }, delay);
+}
+
+function initEditorGallery() {
+  if (!editorGalleryTrack || !charCards || typeof window.Swiper !== "function") return;
+  if (editorGallerySwiper?.destroy) {
+    editorGallerySwiper.destroy(true, true);
+  }
+
+  editorGallerySwiper = new Swiper(editorGalleryTrack, {
+    loop: true,
+    slidesPerView: "auto",
+    spaceBetween: 14,
+    speed: 9000,
+    allowTouchMove: true,
+    grabCursor: true,
+    watchSlidesProgress: true,
+    autoplay: {
+      delay: 0,
+      disableOnInteraction: false,
+      pauseOnMouseEnter: false,
+      waitForTransition: false,
+    },
+  });
+
+  editorGalleryTrack.addEventListener("mouseenter", () => {
+    stopEditorGalleryAutoplay();
+  });
+  editorGalleryTrack.addEventListener("mouseleave", () => {
+    if (!isEditorGalleryPointerDown) {
+      resumeGalleryAutoplay();
+    }
+  });
+  editorGalleryTrack.addEventListener("mousedown", () => {
+    isEditorGalleryPointerDown = true;
+    stopEditorGalleryAutoplay();
+  });
+  window.addEventListener("mouseup", () => {
+    if (!isEditorGalleryPointerDown) return;
+    isEditorGalleryPointerDown = false;
+    resumeGalleryAutoplay();
+  });
+  editorGalleryTrack.addEventListener("touchstart", () => {
+    isEditorGalleryPointerDown = true;
+    stopEditorGalleryAutoplay();
+  }, { passive: true });
+  editorGalleryTrack.addEventListener("touchend", () => {
+    isEditorGalleryPointerDown = false;
+    resumeGalleryAutoplay();
+  }, { passive: true });
+  editorGalleryTrack.addEventListener("touchcancel", () => {
+    isEditorGalleryPointerDown = false;
+    resumeGalleryAutoplay();
+  }, { passive: true });
+  document.addEventListener("visibilitychange", () => {
+    if (document.hidden) {
+      stopEditorGalleryAutoplay();
+      return;
+    }
+    resumeGalleryAutoplay(320);
+  });
+
+  syncEditorGalleryState();
+}
+
+function initEditorGalleryParallax() {
+  if (!editorGallery || !editorGalleryTrack) return;
+  const editorialBg = document.getElementById("editorial-bg");
+  const bgLayers = editorialBg ? Array.from(editorialBg.querySelectorAll(".editorial-bg-layer")) : [];
+  if (!editorialBg || bgLayers.length === 0) return;
+
+  const state = {
+    x: window.innerWidth / 2,
+    y: window.innerHeight / 2,
+    raf: 0,
+  };
+
+  const updateGalleryFocus = (clientX, clientY) => {
+    const rect = editorGalleryTrack.getBoundingClientRect();
+    if (!rect.width || !rect.height) return;
+    const x = ((clientX - rect.left) / rect.width) * 100;
+    const y = ((clientY - rect.top) / rect.height) * 100;
+    editorGallery.style.setProperty("--gallery-mx", `${Math.max(0, Math.min(100, x))}%`);
+    editorGallery.style.setProperty("--gallery-my", `${Math.max(0, Math.min(100, y))}%`);
+  };
+
+  const renderParallax = () => {
+    state.raf = 0;
+    const offsetX = (state.x / Math.max(window.innerWidth, 1)) - 0.5;
+    const offsetY = (state.y / Math.max(window.innerHeight, 1)) - 0.5;
+
+    bgLayers.forEach((layer) => {
+      const factor = Number(layer.dataset.parallaxFactor || 0);
+      const translateX = offsetX * factor * 2;
+      const translateY = offsetY * factor * 1.4;
+      const scale = layer.classList.contains("editorial-bg-image") ? 1.045 : 1.02;
+      layer.style.transform = `translate3d(${translateX.toFixed(2)}px, ${translateY.toFixed(2)}px, 0) scale(${scale})`;
+    });
+
+    updateGalleryFocus(state.x, state.y);
+  };
+
+  const queueParallax = () => {
+    if (!state.raf) {
+      state.raf = window.requestAnimationFrame(renderParallax);
+    }
+  };
+
+  window.addEventListener("mousemove", (e) => {
+    state.x = e.clientX;
+    state.y = e.clientY;
+    queueParallax();
+  }, { passive: true });
+
+  editorGalleryTrack.addEventListener("pointermove", (e) => {
+    state.x = e.clientX;
+    state.y = e.clientY;
+    queueParallax();
+  });
+
+  const resetParallax = () => {
+    state.x = window.innerWidth / 2;
+    state.y = window.innerHeight / 2;
+    queueParallax();
+  };
+
+  editorGalleryTrack.addEventListener("pointerleave", () => {
+    resetParallax();
+    hideEditorHoverCard();
+  });
+  window.addEventListener("mouseleave", resetParallax);
+  window.addEventListener("resize", resetParallax);
+
+  resetParallax();
+}
+
+function toggleGroupMember(id) {
+  const idx = groupMembers.indexOf(id);
+  if (idx >= 0) {
+    groupMembers.splice(idx, 1);
+  } else {
+    if (groupMembers.length >= 6) {
+      toast("群聊最多 6 人");
+      return;
+    }
+    groupMembers.push(id);
+  }
+  updateGroupUI();
+}
+
+function updateGroupUI() {
+  // Update hint text
+  const hint = document.getElementById("group-hint");
+  if (groupMembers.length >= 2) {
+    const names = groupMembers.map(id => {
+      const c = CHARACTERS.find(ch => ch.id === id);
+      return c ? c.name : id;
+    }).join(" · ");
+    hint.textContent = `| 💬 群聊：${names}`;
+  } else if (groupMembers.length === 1) {
+    hint.textContent = "| 💬 再选至少 1 人加入群聊";
+  } else {
+    hint.textContent = "| 右键/Ctrl+点击 选群聊成员";
+  }
+
+  updateReviewButton();
+}
+
+function updateReviewButton() {
+  const hasFile = uploadedChapters.length > 0;
+  const hasChapter = useFullText || selectedChapterIndices.length > 0;
+  const hasChar = selectedCharacter !== null;
+  btnReview.disabled = !(hasFile && hasChapter && hasChar && hasRuntimeAccess());
+  btnReport.disabled = !(hasFile && hasChapter && hasRuntimeAccess());
+  btnReportInline.disabled = btnReport.disabled;
+  syncEditorGalleryState();
+}
+
+function selectCharacter(id) {
+  selectedCharacter = id;
+  const nextIndex = CHARACTERS.findIndex(character => character.id === id);
+  if (nextIndex >= 0 && typeof editorGallerySwiper?.slideToLoop === "function") {
+    editorGallerySwiper.slideToLoop(nextIndex, 480);
+  }
+  updateReviewButton();
+}
+
+/* ================================================================
+   Upload
+   ================================================================ */
+uploadZone.addEventListener("click", () => fileInput.click());
+fileInput.addEventListener("change", (e) => {
+  if (e.target.files.length > 0) handleFile(e.target.files[0]);
+});
+uploadZone.addEventListener("dragover", (e) => {
+  e.preventDefault(); uploadZone.classList.add("drag-over");
+});
+uploadZone.addEventListener("dragleave", () => {
+  uploadZone.classList.remove("drag-over");
+});
+uploadZone.addEventListener("drop", (e) => {
+  e.preventDefault(); uploadZone.classList.remove("drag-over");
+  const file = e.dataTransfer.files[0];
+  if (file) handleFile(file);
+});
+
+async function handleFile(file) {
+  const ext = file.name.split(".").pop().toLowerCase();
+  if (!["txt", "epub"].includes(ext)) {
+    toast("请上传 .txt 或 .epub 文件");
+    return;
+  }
+
+  const formData = new FormData();
+  formData.append("file", file);
+
+  try {
+    const resp = await fetch(API_BASE + "/upload", { method: "POST", body: formData });
+    const data = await resp.json();
+    if (!resp.ok) { toast(data.error || "上传失败"); return; }
+
+    uploadedChapters = data.chapters || [];
+    fullText = data.full_text || "";
+    selectedChapterIndices = [];
+    useFullText = false;
+    resetHealthReport();
+
+    const typeTag = data.file_type === "epub" ? "EPUB" : "TXT";
+    uploadZone.classList.add("uploaded");
+    uploadZone.querySelector(".label").textContent =
+      `✓ ${file.name}（${typeTag} · ${data.chapter_count} 个章节 · ${data.encoding || "utf-8"}）`;
+
+    renderChapters();
+    updateReviewButton();
+  } catch (err) {
+    toast("上传失败: " + err.message);
+  }
+}
+
+/* ================================================================
+   Chapter Selector
+   ================================================================ */
+function renderChapters() {
+  chapterList.innerHTML = "";
+  if (uploadedChapters.length === 0) { chapterSec.classList.remove("visible"); return; }
+  chapterSec.classList.add("visible");
+
+  // Clear state
+  selectedChapterIndices = [];
+  useFullText = false;
+
+  // ── "全文" — visually separated, mutually exclusive ──
+  const fullRow = document.createElement("div");
+  fullRow.style.cssText = "width:100%;margin-bottom:6px;";
+  const fullChip = document.createElement("div");
+  fullChip.className = "chapter-chip";
+  fullChip.style.cssText = "border-color:var(--gold-dim);color:var(--gold);font-weight:600;";
+  fullChip.textContent = "📖 全文（发送完整文本）";
+  fullChip.title = "点评全部文本，包含所有章节";
+  fullChip.addEventListener("click", () => {
+    useFullText = !useFullText;
+    if (useFullText) {
+      selectedChapterIndices = [];
+      $$(".chapter-chip").forEach(c => { if (c !== fullChip) c.classList.remove("selected"); });
+    }
+    fullChip.classList.toggle("selected", useFullText);
+    resetHealthReport();
+    updateReviewButton();
+  });
+  fullRow.appendChild(fullChip);
+  chapterList.appendChild(fullRow);
+
+  // ── Chapter chips — multi-select ──
+  uploadedChapters.forEach((ch, i) => {
+    const chip = document.createElement("div");
+    chip.className = "chapter-chip";
+    chip.textContent = ch.title || `章节 ${i + 1}`;
+    chip.title = ch.title;
+    chip.addEventListener("click", () => {
+      // Deselect full-text when picking chapters
+      if (useFullText) { useFullText = false; fullChip.classList.remove("selected"); }
+
+      const idx = selectedChapterIndices.indexOf(i);
+      if (idx >= 0) {
+        selectedChapterIndices.splice(idx, 1);
+        chip.classList.remove("selected");
+      } else {
+        if (selectedChapterIndices.length >= 7) { toast("最多选择 7 个章节"); return; }
+        selectedChapterIndices.push(i);
+        selectedChapterIndices.sort((a, b) => a - b);
+        chip.classList.add("selected");
+      }
+      resetHealthReport();
+      updateReviewButton();
+    });
+    chapterList.appendChild(chip);
+  });
+}
+
+function updateReviewButton() {
+  const hasFile = uploadedChapters.length > 0;
+  const hasChapter = useFullText || selectedChapterIndices.length > 0;
+  const hasChar = selectedCharacter !== null;
+  btnReview.disabled = !(hasFile && hasChapter && hasChar && hasRuntimeAccess());
+  btnReport.disabled = !(hasFile && hasChapter && hasRuntimeAccess());
+  btnReportInline.disabled = btnReport.disabled;
+  syncEditorGalleryState();
+}
+
+/* ================================================================
+   Extract Chapter Content
+   ================================================================ */
+function extractChapterContent() {
+  if (!fullText || uploadedChapters.length === 0) return "";
+
+  // Full text mode
+  if (useFullText) return fullText.trim();
+
+  // Multi-select: build text from chapter 1 to max(selected)
+  if (selectedChapterIndices.length === 0) return "";
+
+  const pattern = /(?:^|\n)\s*(?:第\s*[零一二三四五六七八九十百千万\d]+\s*[章节回卷]\s*[^\n]*)/gm;
+  const matches = [];
+  let m;
+  while ((m = pattern.exec(fullText)) !== null) {
+    matches.push({ start: m.index, title: m[0] });
+  }
+  if (matches.length === 0) return fullText;
+
+  // Context: from chapter 1 to the LAST selected chapter
+  const maxIdx = Math.max(...selectedChapterIndices);
+  const lastMatchIdx = Math.min(maxIdx, matches.length - 1);
+
+  const startPos = 0; // from beginning for full context
+  const endPos = lastMatchIdx + 1 < matches.length
+    ? matches[lastMatchIdx + 1].start
+    : fullText.length;
+
+  return fullText.slice(startPos, endPos).trim();
+}
+
+function resetHealthReport(message = "上传稿件并选择章节后，点击「生成体检报告」<br>即可获得可视化诊断结果") {
+  reportPlaceholder.style.display = "block";
+  reportPlaceholder.innerHTML = message;
+  reportGrid.style.display = "none";
+  reportGrid.innerHTML = "";
+  btnReportInline.style.display = "none";
+}
+
+function setHealthReportLoading() {
+  reportPlaceholder.style.display = "block";
+  reportPlaceholder.innerHTML = `
+    <div class="loading visible" style="display:block;padding:0">
+      <div class="dots"><span></span><span></span><span></span></div>
+      <p>作品体检报告生成中，请稍候……</p>
+    </div>
+  `;
+  reportGrid.style.display = "none";
+  btnReportInline.style.display = "none";
+}
+
+function renderHealthReport(report) {
+  const scoreLabels = {
+    structure: "结构",
+    character: "人物",
+    pacing: "节奏",
+    language: "语言",
+    readability: "可读性",
+  };
+  const scoreRows = Object.entries(report.scores || {}).map(([key, value]) => `
+    <div class="report-score-row">
+      <div class="top"><strong>${scoreLabels[key] || key}</strong><span>${Number(value).toFixed(1)}</span></div>
+      <div class="report-bar"><div class="report-bar-fill" style="width:${Math.max(10, Math.min(100, Number(value) * 10))}%"></div></div>
+    </div>
+  `).join("");
+
+  const listBlock = (title, items) => `
+    <div class="report-list-card">
+      <h4>${title}</h4>
+      <ul>${(items || []).map(item => `<li>${escapeHtml(item)}</li>`).join("")}</ul>
+    </div>
+  `;
+
+  reportGrid.innerHTML = `
+    <div class="report-summary-card">
+      <h4>${escapeHtml(report.title || "Pieris 作品体检报告")}</h4>
+      <p>${escapeHtml(report.summary || "")}</p>
+      <div class="report-meta">
+        <div class="report-meta-item"><span class="label">题材判断</span><span class="value">${escapeHtml(report.genre_guess || "待识别")}</span></div>
+        <div class="report-meta-item"><span class="label">文风气质</span><span class="value">${escapeHtml(report.tone || "待判断")}</span></div>
+        <div class="report-meta-item"><span class="label">核心抓手</span><span class="value">${escapeHtml(report.core_hook || "待分析")}</span></div>
+      </div>
+      <div class="report-editors">
+        ${(report.suitable_editors || []).map(editor => `<button class="report-editor-btn" data-editor="${escapeHtml(editor)}">继续看 ${escapeHtml(editor)} 的锐评</button>`).join("")}
+      </div>
+    </div>
+    <div class="report-score-card">
+      <h4>五维体检</h4>
+      <div class="report-score-grid">${scoreRows}</div>
+    </div>
+    <div class="report-columns">
+      ${listBlock("当前亮点", report.highlights)}
+      ${listBlock("主要风险", report.risks)}
+      ${listBlock("优先修改项", report.priority_actions)}
+    </div>
+  `;
+  reportPlaceholder.style.display = "none";
+  reportGrid.style.display = "flex";
+  btnReportInline.style.display = "inline-flex";
+}
+
+async function startHealthReport(chapterText, apiKey) {
+  const controller = new AbortController();
+  activeReportAbort = controller;
+  dualPanel.classList.add("visible");
+  setHealthReportLoading();
+
+  try {
+    const resp = await fetch(API_BASE + "/report/health", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ chapter_text: chapterText, api_key: apiKey }),
+      signal: controller.signal,
+    });
+    const data = await resp.json().catch(() => ({}));
+    if (!resp.ok) {
+      resetHealthReport("作品体检报告暂时无法生成，请稍后再试。");
+      toast(data.error || `体检报告请求失败：HTTP ${resp.status}`);
+      return;
+    }
+    renderHealthReport(data.report || {});
+    reportSection.scrollIntoView({ behavior: "smooth", block: "start" });
+  } catch (err) {
+    if (err.name !== "AbortError") {
+      resetHealthReport("作品体检报告暂时无法生成，请稍后再试。");
+      toast("体检报告连接失败: " + err.message);
+    }
+  } finally {
+    if (activeReportAbort === controller) activeReportAbort = null;
+    updateReviewButton();
+  }
+}
+
+async function triggerHealthReport() {
+  const apiKey = apiKeyInput.value.trim();
+  if (!hasRuntimeAccess()) {
+    toast(demoStatus.enabled ? "演示额度已用完，请填写自己的 API Key 或联系项目作者。" : "请先输入 DeepSeek API Key");
+    return;
+  }
+  const chapterContent = extractChapterContent();
+  if (!chapterContent) {
+    toast("请先上传并选择要分析的章节");
+    return;
+  }
+  btnReport.disabled = true;
+  btnReportInline.disabled = true;
+  await startHealthReport(chapterContent, apiKey);
+}
+
+btnReport.addEventListener("click", triggerHealthReport);
+btnReportInline.addEventListener("click", triggerHealthReport);
+reportGrid.addEventListener("click", (e) => {
+  const btn = e.target.closest(".report-editor-btn");
+  if (!btn) return;
+  const editor = btn.dataset.editor;
+  if (!editor) return;
+  selectCharacter(editor);
+  toast(`已为你选中 ${editor} 作为主评编辑`);
+  const targetCard = document.querySelector(`.char-card[data-id="${editor}"]`);
+  if (targetCard) targetCard.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "center" });
+});
+
+/* ================================================================
+   Abort helper
+   ================================================================ */
+function abortAll() {
+  if (activeReviewAbort) { activeReviewAbort.abort(); activeReviewAbort = null; }
+  const groupAbort = activeGroupAbort;
+  if (groupAbort) { groupAbort.abort(); activeGroupAbort = null; }
+}
+
+function beginFreshChatSession() {
+  const nextSession = ChatState.createFreshChatSession(activeChatSessionId);
+  activeChatSessionId = nextSession.sessionId;
+  currentChatOrder = nextSession.currentChatOrder;
+  chatMsgIndex = nextSession.chatMsgIndex;
+  return nextSession.sessionId;
+}
+
+function isStaleChatSession(sessionId) {
+  return ChatState.isStaleChatSession(activeChatSessionId, sessionId);
+}
+
+function getActiveChatOrder() {
+  return ChatState.resolveChatOrder(currentChatOrder, GROUP_ORDER);
+}
+
+/* ════════════════════════════════════════════════════════════
+   GROUP CHAT
+   ════════════════════════════════════════════════════════════ */
+
+function resetChat() {
+  chatMessages.innerHTML = `<div class="chat-placeholder" id="chat-placeholder">上传稿件并开始锐评后<br>入群编辑会在此展开内部讨论</div>`;
+  chatStatus.textContent = "";
+  chatMsgIndex = 0;
+  currentChatOrder = [];
+}
+
+function addChatTyping(editor) {
+  // Remove previous typing indicator if any
+  const prev = chatMessages.querySelector(".typing-indicator");
+  if (prev) prev.remove();
+
+  const avatar = GROUP_AVATARS[editor] || "";
+  const div = document.createElement("div");
+  div.className = "typing-indicator";
+  div.innerHTML = `${avatar} <strong>${editor}</strong> 正在输入<div class="dots"><span></span><span></span><span></span></div>`;
+  chatMessages.appendChild(div);
+  scrollChatBottom();
+}
+
+function addChatMessage(editor, message) {
+  // Remove typing indicator
+  const typing = chatMessages.querySelector(".typing-indicator");
+  if (typing) typing.remove();
+
+  // Remove placeholder on first message
+  const ph = chatMessages.querySelector(".chat-placeholder");
+  if (ph) ph.remove();
+
+  const avatar = GROUP_AVATARS[editor] || "";
+  const div = document.createElement("div");
+  div.className = "chat-msg";
+  div.innerHTML = `
+    <div class="msg-avatar">${avatar}</div>
+    <div class="msg-body">
+      <div class="msg-name">${editor}</div>
+      <div class="msg-text">${escapeHtml(message)}</div>
+    </div>
+  `;
+  chatMessages.appendChild(div);
+  scrollChatBottom();
+}
+
+function scrollChatBottom() {
+  requestAnimationFrame(() => {
+    chatMessages.scrollTop = chatMessages.scrollHeight;
+  });
+}
+
+async function startGroupChat(chapterText, apiKey, characterIds, sessionId) {
+  if (isStaleChatSession(sessionId)) return;
+
+  // Update chat header with selected members
+  const memberNames = (characterIds || []).map(id => {
+    const c = CHARACTERS.find(ch => ch.id === id);
+    return c ? c.name : id;
+  });
+  const headerMembers = document.querySelector(".chat-panel .members");
+  if (headerMembers && memberNames.length && !isStaleChatSession(sessionId)) {
+    headerMembers.textContent = memberNames.join(" · ");
+  }
+
+  // Dynamic order will be set from SSE first message
+  let dynamicOrder = null;
+  let dynamicAvatars = {};
+
+  chatStatus.textContent = "连接中...";
+
+  const controller = new AbortController();
+  activeGroupAbort = controller;
+
+  try {
+    const resp = await fetch(API_BASE + "/chat/group", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ chapter_text: chapterText, api_key: apiKey, character_ids: characterIds }),
+      signal: controller.signal,
+    });
+
+    if (isStaleChatSession(sessionId)) return;
+
+    const reader = resp.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = "";
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      if (isStaleChatSession(sessionId)) return;
+      buffer += decoder.decode(value, { stream: true });
+
+      const lines = buffer.split("\n");
+      buffer = lines.pop() || "";
+
+      for (const line of lines) {
+        if (!line.startsWith("data: ")) continue;
+        const payload = line.slice(6);
+        if (payload === "[DONE]") {
+          if (isStaleChatSession(sessionId)) return;
+          const typing = chatMessages.querySelector(".typing-indicator");
+          if (typing) typing.remove();
+          currentChatOrder = Array.isArray(dynamicOrder) ? dynamicOrder.slice() : [];
+          const order = getActiveChatOrder();
+          if (chatMsgIndex < order.length) {
+            fillRemainingChatSlots(sessionId);
+          } else {
+            chatStatus.textContent = "讨论结束";
+          }
+          activeGroupAbort = null;
+          return;
+        }
+        try {
+          const data = JSON.parse(payload);
+          if (data.error) {
+            if (isStaleChatSession(sessionId)) return;
+            addChatMessage("系统", "⚠ " + data.error);
+            chatStatus.textContent = "讨论中断";
+            const typing = chatMessages.querySelector(".typing-indicator");
+            if (typing) typing.remove();
+            activeGroupAbort = null;
+            return;
+          }
+          // First message: receive dynamic order and avatars
+          if (data.order && !dynamicOrder) {
+            if (isStaleChatSession(sessionId)) return;
+            dynamicOrder = Array.isArray(data.order) ? data.order.slice() : [];
+            currentChatOrder = dynamicOrder.slice();
+            dynamicAvatars = data.avatars || {};
+            Object.assign(GROUP_AVATARS, dynamicAvatars);
+            // Remove placeholder, show first typing
+            const ph = chatMessages.querySelector(".chat-placeholder");
+            if (ph) ph.remove();
+            if (dynamicOrder.length > 0) {
+              addChatTyping(dynamicOrder[0]);
+            }
+            chatStatus.textContent = "讨论中...";
+            continue;
+          }
+          if (data.editor && data.message) {
+            if (isStaleChatSession(sessionId)) return;
+            addChatMessage(data.editor, data.message);
+            chatMsgIndex++;
+            const order = getActiveChatOrder();
+            if (chatMsgIndex < order.length) {
+              addChatTyping(order[chatMsgIndex]);
+            }
+          }
+        } catch (e) { /* skip malformed */ }
+      }
+    }
+  } catch (err) {
+    if (err.name === "AbortError") {
+      return;
+    } else {
+      if (isStaleChatSession(sessionId)) return;
+      addChatMessage("系统", "⚠ 群聊连接失败: " + err.message);
+      chatStatus.textContent = "连接失败";
+    }
+  } finally {
+    if (isStaleChatSession(sessionId)) return;
+    const typing = chatMessages.querySelector(".typing-indicator");
+    if (typing) typing.remove();
+    if (activeGroupAbort === controller) activeGroupAbort = null;
+  }
+}
+
+function fillRemainingChatSlots(sessionId) {
+  if (sessionId && isStaleChatSession(sessionId)) return;
+  const remainingEditors = ChatState.getRemainingChatEditors(currentChatOrder, GROUP_ORDER, chatMsgIndex);
+  for (const editor of remainingEditors) {
+    const avatar = GROUP_AVATARS[editor] || "";
+    const div = document.createElement("div");
+    div.className = "chat-msg dimmed";
+    div.innerHTML = `
+      <div class="msg-avatar">${avatar}</div>
+      <div class="msg-body">
+        <div class="msg-name">${editor}</div>
+        <div class="msg-text">……</div>
+      </div>
+    `;
+    chatMessages.appendChild(div);
+  }
+  chatStatus.textContent = "讨论结束";
+}
+
+function stopGroupChatWithEllipsis(sessionId, reasonText = "讨论结束") {
+  if (sessionId && isStaleChatSession(sessionId)) return;
+  const typing = chatMessages.querySelector(".typing-indicator");
+  if (typing) typing.remove();
+
+  const hasOpenGroupStream = !!activeGroupAbort;
+  if (hasOpenGroupStream) {
+    activeGroupAbort.abort();
+    activeGroupAbort = null;
+  }
+
+  const order = getActiveChatOrder();
+  if (chatMsgIndex < order.length) {
+    fillRemainingChatSlots(sessionId);
+  } else {
+    chatStatus.textContent = reasonText;
+  }
+}
+
+/* ════════════════════════════════════════════════════════════
+   STREAMING REVIEW
+   ════════════════════════════════════════════════════════════ */
+
+function resetReview() {
+  dualPanel.classList.remove("visible");
+  resultSec.classList.remove("visible");
+  resultCard.innerHTML = "";
+}
+
+function initReviewCard(character) {
+  const char = character || {};
+  const avatarClass = char.type || "reader_editor";
+  resultCard.innerHTML = `
+    <div class="result-header">
+      <div class="reviewer-avatar avatar ${avatarClass}">${char.emoji || "📝"}</div>
+      <div class="reviewer-info">
+        <div class="name">${char.name || "编辑"} 的锐评</div>
+        <div class="label">${char.typeLabel || ""} · ${char.desc || ""}</div>
+      </div>
+    </div>
+    <div class="result-content" id="stream-content"><span class="stream-cursor">▌</span></div>
+  `;
+  dualPanel.classList.add("visible");
+  resultSec.classList.add("visible");
+}
+
+function appendReviewChunk(chunk) {
+  const el = document.getElementById("stream-content");
+  if (!el) return;
+  const cursor = el.querySelector(".stream-cursor");
+  if (cursor) {
+    cursor.before(document.createTextNode(chunk));
+  } else {
+    el.appendChild(document.createTextNode(chunk));
+  }
+  // scroll to bottom
+  resultCard.scrollIntoView({ behavior: "smooth", block: "end" });
+}
+
+function finalizeReview() {
+  const el = document.getElementById("stream-content");
+  if (!el) return;
+  const cursor = el.querySelector(".stream-cursor");
+  if (cursor) cursor.remove();
+  // Convert accumulated text to rendered markdown
+  const raw = el.innerText || el.textContent || "";
+  el.innerHTML = simpleMarkdown(raw);
+}
+
+function startReviewStream(characterId, chapterText, apiKey, sessionId) {
+  return new Promise(async (resolve, reject) => {
+    const controller = new AbortController();
+    activeReviewAbort = controller;
+
+    try {
+      const resp = await fetch(API_BASE + "/chat/stream", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          character_id: characterId,
+          chapter_text: chapterText,
+          api_key: apiKey,
+        }),
+        signal: controller.signal,
+      });
+
+      if (!resp.ok) {
+        const errData = await resp.json().catch(() => ({}));
+        const msg = errData.error || `HTTP ${resp.status}`;
+        toast("点评请求失败: " + msg);
+        activeReviewAbort = null;
+        resolve();
+        return;
+      }
+
+      const reader = resp.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+
+        const lines = buffer.split("\n");
+        buffer = lines.pop() || "";
+
+        for (const line of lines) {
+          if (!line.startsWith("data: ")) continue;
+          const payload = line.slice(6);
+          if (payload === "[DONE]") {
+            finalizeReview();
+            stopGroupChatWithEllipsis(sessionId);
+            activeReviewAbort = null;
+            resolve();
+            return;
+          }
+          try {
+            const data = JSON.parse(payload);
+            if (data.error) {
+              toast(data.error);
+              finalizeReview();
+              activeReviewAbort = null;
+              resolve();
+              return;
+            }
+            if (data.content) {
+              appendReviewChunk(data.content);
+            }
+          } catch (e) { /* skip malformed */ }
+        }
+      }
+      finalizeReview();
+    } catch (err) {
+      if (err.name !== "AbortError") {
+        toast("流式连接失败: " + err.message);
+      }
+    } finally {
+      if (activeReviewAbort === controller) activeReviewAbort = null;
+      resolve();
+    }
+  });
+}
+
+/* ================================================================
+   Run Review + Group Chat simultaneously
+   ================================================================ */
+btnReview.addEventListener("click", async () => {
+  const apiKey = apiKeyInput.value.trim();
+  if (!hasRuntimeAccess()) {
+    toast(demoStatus.enabled ? "演示额度已用完，请填写自己的 API Key 或联系项目作者。" : "请先输入 DeepSeek API Key");
+    return;
+  }
+  if (!selectedCharacter) { toast("请先选择一位编辑"); return; }
+  if (!useFullText && selectedChapterIndices.length === 0) {
+    toast("请先选择要评的章节或点击「全文」"); return;
+  }
+
+  const chapterContent = extractChapterContent();
+  if (!chapterContent) { toast("章节内容为空"); return; }
+
+  const chatSessionId = beginFreshChatSession();
+  abortAll();
+
+  // Reset UI
+  resetChat();
+  resetReview();
+  loadingEl.classList.add("visible");
+  btnReview.disabled = true;
+  btnReroll.style.display = "none";
+
+  const char = CHARACTERS.find(c => c.id === selectedCharacter) || {};
+  initReviewCard(char);
+
+  // Start both streams in parallel; when main review ends, group chat closes with ellipsis fillers
+  loadingEl.classList.remove("visible");
+
+  // Build group chat member list (include main reviewer if in group, or use defaults)
+  let chatMembers = groupMembers.length >= 2 ? [...groupMembers] : ["铁板", "余墨", "知苑"];
+
+  const reviewPromise = startReviewStream(selectedCharacter, chapterContent, apiKey, chatSessionId);
+  const groupPromise = startGroupChat(chapterContent, apiKey, chatMembers, chatSessionId);
+
+  await Promise.allSettled([reviewPromise, groupPromise]);
+
+  btnReview.disabled = false;
+  btnReroll.style.display = "inline-block";
+  resultSec.scrollIntoView({ behavior: "smooth", block: "start" });
+});
+
+btnReroll.addEventListener("click", async () => {
+  if (!selectedCharacter) return;
+  const apiKey = apiKeyInput.value.trim();
+  if (!hasRuntimeAccess()) {
+    toast(demoStatus.enabled ? "演示额度已用完，请填写自己的 API Key 或联系项目作者。" : "请先输入 API Key");
+    return;
+  }
+  const chapterContent = extractChapterContent();
+  if (!chapterContent) { toast("章节内容为空"); return; }
+
+  const chatSessionId = beginFreshChatSession();
+  abortAll();
+  resetReview();
+  resetChat();
+  btnReview.disabled = true;
+  btnReroll.style.display = "none";
+
+  const char = CHARACTERS.find(c => c.id === selectedCharacter) || {};
+  initReviewCard(char);
+
+  let chatMembers = groupMembers.length >= 2 ? [...groupMembers] : ["铁板", "余墨", "知苑"];
+
+  const reviewPromise = startReviewStream(selectedCharacter, chapterContent, apiKey, chatSessionId);
+  const groupPromise = startGroupChat(chapterContent, apiKey, chatMembers, chatSessionId);
+
+  await Promise.allSettled([reviewPromise, groupPromise]);
+
+  btnReview.disabled = false;
+  btnReroll.style.display = "inline-block";
+});
+
+/* ================================================================
+   HTML escape helper
+   ================================================================ */
+function escapeHtml(str) {
+  const div = document.createElement("div");
+  div.textContent = str;
+  return div.innerHTML;
+}
+
+/* ================================================================
+   Simple Markdown → HTML
+   ================================================================ */
+function simpleMarkdown(text) {
+  let html = text
+    .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+    .replace(/^### (.+)$/gm, "<h3>$1</h3>")
+    .replace(/^## (.+)$/gm, "<h2>$1</h2>")
+    .replace(/^# (.+)$/gm, "<h1>$1</h1>")
+    .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
+    .replace(/\*(.+?)\*/g, "<em>$1</em>")
+    .replace(/`([^`]+)`/g, "<code>$1</code>")
+    .replace(/^&gt; (.+)$/gm, "<blockquote>$1</blockquote>")
+    .replace(/^---$/gm, "<hr>")
+    .replace(/^- (.+)$/gm, "<li>$1</li>")
+    .replace(/^\|(.+)\|$/gm, (line) => {
+      const cells = line.split("|").filter(c => c.trim() !== "");
+      const isSep = cells.every(c => /^[-:]+$/.test(c.trim()));
+      if (isSep) return "<!-- table-sep -->";
+      return "<tr>" + cells.map(c => `<td>${c.trim()}</td>`).join("") + "</tr>";
+    })
+    .replace(/((?:<li>.*<\/li>\n?)+)/g, "<ul>$1</ul>")
+    .replace(/((?:<tr>.*<\/tr>\n?)+)/g, (group) => {
+      const rows = group.split("\n").filter(r => r.trim());
+      if (rows.length === 0) return group;
+      rows[0] = rows[0].replace(/<td>/g, "<th>").replace(/<\/td>/g, "</th>");
+      return "<table>" + rows.join("") + "</table>";
+    })
+    .replace(/\n\n+/g, "</p><p>")
+    .replace(/\n/g, "<br>");
+
+  html = "<p>" + html + "</p>";
+  html = html.replace(/<p><\/p>/g, "");
+  html = html.replace(/<p>(<h[123][^>]*>)/g, "$1");
+  html = html.replace(/(<\/h[123]>)(<\/p>)/g, "$1");
+  html = html.replace(/<p>(<ul>)/g, "$1");
+  html = html.replace(/(<\/ul>)(<\/p>)/g, "$1");
+  html = html.replace(/<p>(<blockquote>)/g, "$1");
+  html = html.replace(/(<\/blockquote>)(<\/p>)/g, "$1");
+  html = html.replace(/<p>(<table>)/g, "$1");
+  html = html.replace(/(<\/table>)(<\/p>)/g, "$1");
+  html = html.replace(/<p>(<hr>)/g, "$1");
+  html = html.replace(/(<hr>)(<\/p>)/g, "$1");
+  html = html.replace(/<br><\/(h[123]|ul|blockquote|table|li)>/g, "</$1>");
+  html = html.replace(/<\/(h[123]|ul|blockquote|table)><br>/g, "</$1>");
+
+  return html;
+}
+
+/* ════════════════════════════════════════════════════════════
+   API KEY VERIFY
+   ════════════════════════════════════════════════════════════ */
+const btnVerify  = $("#btn-verify");
+const verifyStatus = $("#verify-status");
+
+btnVerify.addEventListener("click", async () => {
+  const key = apiKeyInput.value.trim();
+  if (!key) { toast("请先输入 API Key"); return; }
+
+  btnVerify.disabled = true;
+  btnVerify.textContent = "验证中...";
+  btnVerify.className = "btn-verify";
+  verifyStatus.textContent = "";
+  verifyStatus.className = "verify-status";
+
+  try {
+    const resp = await fetch(API_BASE + "/verify-key", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ api_key: key }),
+    });
+    const data = await resp.json();
+
+    if (data.valid) {
+      btnVerify.textContent = "✓ 有效";
+      btnVerify.className = "btn-verify success";
+      verifyStatus.textContent = data.model || "deepseek-v4-pro";
+      verifyStatus.className = "verify-status ok";
+      localStorage.setItem("ds_api_key", key);
+    } else {
+      btnVerify.textContent = "✗ 无效";
+      btnVerify.className = "btn-verify fail";
+      verifyStatus.textContent = data.error || "验证失败";
+      verifyStatus.className = "verify-status err";
+    }
+  } catch (err) {
+    btnVerify.textContent = "✗ 错误";
+    btnVerify.className = "btn-verify fail";
+    verifyStatus.textContent = err.message;
+    verifyStatus.className = "verify-status err";
+  } finally {
+    btnVerify.disabled = false;
+    updateReviewButton();
+    setTimeout(() => {
+      if (btnVerify.textContent !== "验证") {
+        btnVerify.textContent = "验证";
+        btnVerify.className = "btn-verify";
+        verifyStatus.textContent = "";
+        verifyStatus.className = "verify-status";
+      }
+    }, 8000);
+  }
+});
+
+/* ════════════════════════════════════════════════════════════
+   SOUND SYSTEM — Web Audio API, zero dependencies
+   ════════════════════════════════════════════════════════════ */
+let soundEnabled = true;
+const Sound = (() => {
+  let ctx = null;
+  function getCtx() {
+    if (!ctx) ctx = new (window.AudioContext || window.webkitAudioContext)();
+    return ctx;
+  }
+  function play(freq, type, duration, vol = 0.08) {
+    if (!soundEnabled) return;
+    try {
+      const c = getCtx();
+      const osc = c.createOscillator();
+      const gain = c.createGain();
+      osc.type = type;
+      osc.frequency.value = freq;
+      gain.gain.setValueAtTime(vol, c.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, c.currentTime + duration);
+      osc.connect(gain);
+      gain.connect(c.destination);
+      osc.start(c.currentTime);
+      osc.stop(c.currentTime + duration);
+    } catch (e) { /* silent fail */ }
+  }
+  return {
+    click()   { play(800,  "sine",     0.08, 0.06); },
+    select()  { play(660,  "sine",     0.10, 0.07); play(880, "sine", 0.08, 0.05); },
+    upload()  { play(440,  "triangle", 0.12, 0.08); setTimeout(() => play(660, "triangle", 0.10, 0.06), 80); setTimeout(() => play(880, "triangle", 0.12, 0.08), 160); },
+    msgIn()   { play(600,  "triangle", 0.10, 0.04); play(900, "triangle", 0.08, 0.03); },
+    chatDone(){ play(520,  "sine",     0.12, 0.05); setTimeout(() => play(780, "sine", 0.15, 0.06), 100); },
+    success() { play(523,  "sine",     0.15, 0.10); setTimeout(() => play(659, "sine", 0.15, 0.10), 100); setTimeout(() => play(784, "sine", 0.18, 0.12), 200); },
+    error()   { play(200,  "square",   0.20, 0.15); },
+    reviewStart(){ play(330, "sine",  0.25, 0.05); setTimeout(() => play(440, "sine", 0.20, 0.05), 150); },
+    reviewDone(){ play(440, "sine",   0.30, 0.06); setTimeout(() => play(660, "sine", 0.30, 0.06), 120); setTimeout(() => play(880, "sine", 0.35, 0.08), 240); },
+  };
+})();
+
+// Attach sounds to interactions
+document.addEventListener("click", (e) => {
+  if (e.target.closest(".btn") || e.target.closest("button")) Sound.click();
+  if (e.target.closest(".char-card")) Sound.select();
+  if (e.target.closest(".chapter-chip")) Sound.select();
+});
+
+// Override upload handler to add sound
+const _origHandleFile = handleFile;
+handleFile = async function(file) {
+  await _origHandleFile(file);
+  if (uploadedChapters.length > 0) Sound.upload();
+};
+
+// Override addChatMessage to add sound (per-editor pitch)
+const _origAddChatMessage = addChatMessage;
+addChatMessage = function(editor, message) {
+  Sound.msgIn();
+  _origAddChatMessage(editor, message);
+};
+
+// Sound on review start
+const _origInitReviewCard = initReviewCard;
+initReviewCard = function(character) {
+  Sound.reviewStart();
+  _origInitReviewCard(character);
+};
+
+// Sound on review complete
+const _origFinalizeReview = finalizeReview;
+finalizeReview = function() {
+  Sound.reviewDone();
+  _origFinalizeReview();
+};
+
+// Sound on chat done
+const _origFillRemaining = fillRemainingChatSlots;
+fillRemainingChatSlots = function(...args) {
+  Sound.chatDone();
+  _origFillRemaining(...args);
+};
+
+/* ════════════════════════════════════════════════════════════
+   API KEY FOLD TOGGLE
+   ════════════════════════════════════════════════════════════ */
+const apiKeySection = document.getElementById("api-key-section");
+const btnToggleKey = document.getElementById("btn-toggle-key");
+
+// Load saved state
+let keyFolded = localStorage.getItem("pieris_key_folded") !== "false"; // default true
+if (!keyFolded) apiKeySection.classList.remove("folded");
+updateKeyToggleBtn();
+
+btnToggleKey.addEventListener("click", () => {
+  keyFolded = !keyFolded;
+  apiKeySection.classList.toggle("folded", keyFolded);
+  localStorage.setItem("pieris_key_folded", keyFolded);
+  updateKeyToggleBtn();
+});
+
+function updateKeyToggleBtn() {
+  btnToggleKey.textContent = keyFolded ? "🔑 API 设置" : "🔑 API 设置 ▲";
+}
+
+/* ════════════════════════════════════════════════════════════
+   SOUND TOGGLE
+   ════════════════════════════════════════════════════════════ */
+const btnToggleSound = document.getElementById("btn-toggle-sound");
+btnToggleSound.addEventListener("click", () => {
+  soundEnabled = !soundEnabled;
+  btnToggleSound.textContent = soundEnabled ? "🔇 音效" : "🔊 音效（已关）";
+  localStorage.setItem("pieris_sound", soundEnabled ? "on" : "off");
+});
+soundEnabled = localStorage.getItem("pieris_sound") !== "off";
+btnToggleSound.textContent = soundEnabled ? "🔇 音效" : "🔊 音效（已关）";
+
+/* ════════════════════════════════════════════════════════════
+   EXPORT — TXT Download & Print
+   ════════════════════════════════════════════════════════════ */
+const cardActions = document.getElementById("card-actions");
+const btnExportTxt = document.getElementById("btn-export-txt");
+const btnExportPrint = document.getElementById("btn-export-print");
+
+function showCardActions() {
+  cardActions.style.display = "flex";
+}
+function hideCardActions() {
+  cardActions.style.display = "none";
+}
+
+btnExportTxt.addEventListener("click", () => {
+  const content = document.getElementById("stream-content");
+  if (!content) return;
+  Sound.click();
+  const text = (content.textContent || content.innerText || "").trim();
+  if (!text) { toast("暂无内容可导出"); return; }
+  const blob = new Blob([text], { type: "text/plain;charset=utf-8" });
+  const a = document.createElement("a");
+  a.download = "Pieris锐评_" + new Date().toISOString().slice(0, 10) + ".txt";
+  a.href = URL.createObjectURL(blob);
+  a.click();
+  URL.revokeObjectURL(a.href);
+  Sound.success();
+});
+
+btnExportPrint.addEventListener("click", () => {
+  const card = document.getElementById("result-card");
+  if (!card) return;
+  Sound.click();
+  const styles = document.querySelector("style").outerHTML;
+  const win = window.open("", "_blank", "width=800,height=600");
+  win.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Pieris锐评</title>${styles}</head><body style="background:#100a1f;padding:40px;display:flex;justify-content:center"><div class="result-card" style="max-width:700px">${card.innerHTML}</div></body></html>`);
+  win.document.close();
+  setTimeout(() => win.print(), 600);
+});
+
+// Override finalizeReview to show export buttons
+const _origFinalizeReview2 = finalizeReview;
+finalizeReview = function() {
+  _origFinalizeReview2();
+  showCardActions();
+};
+
+// Override resetReview to hide export buttons
+const _origResetReview = resetReview;
+resetReview = function() {
+  _origResetReview();
+  hideCardActions();
+};
+
+/* ════════════════════════════════════════════════════════════
+   PWA — Service Worker Registration
+   ════════════════════════════════════════════════════════════ */
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("/sw.js").catch(() => {});
+  });
+}
+
+/* ════════════════════════════════════════════════════════════
+   INIT
+   ════════════════════════════════════════════════════════════ */
+renderCharCards();
+initEditorGallery();
+initEditorGalleryParallax();
+resetHealthReport();
+
+const savedKey = localStorage.getItem("ds_api_key");
+if (savedKey) apiKeyInput.value = savedKey;
+apiKeyInput.addEventListener("change", () => {
+  localStorage.setItem("ds_api_key", apiKeyInput.value.trim());
+  syncDemoModeUI();
+  updateReviewButton();
+});
+refreshDemoStatus();
+</script>
+
+</body>
+</html>
